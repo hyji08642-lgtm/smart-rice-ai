@@ -24,7 +24,7 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build web --release
+      - run: flutter build web --release --base-href /smart-rice-ai/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
