@@ -297,7 +297,7 @@ class _ControlGrid extends StatelessWidget {
                 child: _ControlButton(
                   icon: Icons.door_front_door_rounded,
                   label: '수문 열기',
-                  filled: !gateOpen,
+                  filled: gateOpen,
                   color: AppColors.secondary,
                   onTap: () => onGate(true),
                 ),
@@ -307,7 +307,7 @@ class _ControlGrid extends StatelessWidget {
                 child: _ControlButton(
                   icon: Icons.door_front_door_rounded,
                   label: '수문 닫기',
-                  filled: gateOpen,
+                  filled: !gateOpen,
                   onTap: () => onGate(false),
                 ),
               ),
@@ -320,7 +320,7 @@ class _ControlGrid extends StatelessWidget {
                 child: _ControlButton(
                   icon: Icons.bolt_rounded,
                   label: '펌프 켜기',
-                  filled: !pumpOn,
+                  filled: pumpOn,
                   onTap: () => onPump(true),
                 ),
               ),
@@ -329,7 +329,7 @@ class _ControlGrid extends StatelessWidget {
                 child: _ControlButton(
                   icon: Icons.power_settings_new_rounded,
                   label: '펌프 끄기',
-                  filled: pumpOn,
+                  filled: !pumpOn,
                   onTap: () => onPump(false),
                 ),
               ),

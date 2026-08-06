@@ -79,7 +79,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         _Filter.all => '전체',
         _Filter.rain => '강우',
         _Filter.methaneRisk => '메탄',
-        _Filter.ecRisk => '전기',
+        _Filter.ecRisk => 'EC',
         _Filter.battery => '배터리',
       };
 }

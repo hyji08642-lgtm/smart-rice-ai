@@ -38,18 +38,21 @@ class PaddiesNotifier extends Notifier<List<Paddy>> {
   @override
   List<Paddy> build() => MockData.paddies();
 
-  void addPaddy() {
-    final letter = String.fromCharCode('A'.codeUnitAt(0) + state.length);
+  String addPaddy({
+    required String name,
+    required String stage,
+    required String area,
+  }) {
+    final id = 'paddy_${state.length + 1}';
     state = [
       ...state,
-      Paddy(
-        id: 'paddy_${state.length + 1}',
-        name: '논 $letter',
-        stage: '육묘',
-        area: '1,000㎡',
-        riskScore: 0.3,
-      ),
+      Paddy(id: id, name: name, stage: stage, area: area, riskScore: 0.3),
     ];
+    return id;
+  }
+
+  void removePaddy(String id) {
+    state = state.where((p) => p.id != id).toList();
   }
 }
 
