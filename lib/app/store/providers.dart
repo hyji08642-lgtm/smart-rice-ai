@@ -207,7 +207,7 @@ class Settings {
 class SettingsNotifier extends Notifier<Settings> {
   @override
   Settings build() =>
-      const Settings(autoControl: true, notifications: true, themeMode: ThemeMode.dark);
+      const Settings(autoControl: true, notifications: true, themeMode: ThemeMode.system);
 
   void setAutoControl(bool v) => state = state.copyWith(autoControl: v);
 
