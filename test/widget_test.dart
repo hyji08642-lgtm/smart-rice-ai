@@ -141,7 +141,7 @@ void main() {
     await tester.pump();
   });
 
-  testWidgets('control buttons reflect manual state', (tester) async {
+  testWidgets('control buttons locked under AI auto control', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
@@ -153,19 +153,44 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    Finder filledWith(String label) => find.ancestor(
-          of: find.text(label),
-          matching: find.byWidgetPredicate((w) => w is FilledButton),
+    ButtonStyleButton button(String label) =>
+        tester.widget<ButtonStyleButton>(
+          find.ancestor(
+            of: find.text(label),
+            matching: find.byWidgetPredicate(
+              (w) => w is FilledButton || w is OutlinedButton,
+            ),
+          ),
         );
 
-    expect(filledWith('펌프 켜기'), findsOneWidget);
-    expect(filledWith('펌프 끄기'), findsNothing);
+    expect(find.text('AI 제어 중'), findsOneWidget);
+    expect(button('펌프 켜기').onPressed, isNull);
+    expect(button('펌프 끄기').onPressed, isNull);
+
+    await tester.tap(find.byType(Switch));
+    await tester.pump();
+
+    expect(find.text('AI 제어 중'), findsNothing);
+    expect(button('펌프 켜기').onPressed, isNotNull);
+    expect(button('펌프 끄기').onPressed, isNotNull);
 
     await tester.tap(find.text('펌프 끄기'));
     await tester.pump();
 
-    expect(filledWith('펌프 끄기'), findsOneWidget);
-    expect(filledWith('펌프 켜기'), findsNothing);
+    final pumpOffButton = tester.widget<FilledButton>(
+      find.ancestor(
+        of: find.text('펌프 끄기'),
+        matching: find.byWidgetPredicate((w) => w is FilledButton),
+      ),
+    );
+    expect(pumpOffButton.onPressed, isNotNull);
+    expect(
+      find.ancestor(
+        of: find.text('펌프 켜기'),
+        matching: find.byWidgetPredicate((w) => w is FilledButton),
+      ),
+      findsNothing,
+    );
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();

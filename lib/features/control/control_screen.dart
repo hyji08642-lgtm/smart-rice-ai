@@ -43,6 +43,7 @@ class ControlScreen extends ConsumerWidget {
           ],
           const SizedBox(height: 12),
           _ControlGrid(
+            enabled: !settings.autoControl,
             gateOpen: t?.gateOpen ?? false,
             pumpOn: t?.pumpOn ?? false,
             onGate: (open) => _setGate(context, ref, open),
@@ -272,12 +273,14 @@ class _ApplyCard extends StatelessWidget {
 
 class _ControlGrid extends StatelessWidget {
   const _ControlGrid({
+    required this.enabled,
     required this.gateOpen,
     required this.pumpOn,
     required this.onGate,
     required this.onPump,
   });
 
+  final bool enabled;
   final bool gateOpen;
   final bool pumpOn;
   final ValueChanged<bool> onGate;
@@ -285,11 +288,49 @@ class _ControlGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('수문 · 펌프 제어', style: Theme.of(context).textTheme.titleMedium),
+          Row(
+            children: [
+              Text('수문 · 펌프 제어', style: theme.textTheme.titleMedium),
+              const Spacer(),
+              if (!enabled)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary
+                        .withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.lock_outline_rounded,
+                          size: 13, color: AppColors.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        'AI 제어 중',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          if (!enabled) ...[
+            const SizedBox(height: 4),
+            Text(
+              'AI 자동 제어가 켜져 있어 수동 조작이 잠겼어요.',
+              style: theme.textTheme.labelMedium,
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
@@ -299,6 +340,7 @@ class _ControlGrid extends StatelessWidget {
                   label: '수문 열기',
                   filled: gateOpen,
                   color: AppColors.secondary,
+                  enabled: enabled,
                   onTap: () => onGate(true),
                 ),
               ),
@@ -308,6 +350,7 @@ class _ControlGrid extends StatelessWidget {
                   icon: Icons.door_front_door_rounded,
                   label: '수문 닫기',
                   filled: !gateOpen,
+                  enabled: enabled,
                   onTap: () => onGate(false),
                 ),
               ),
@@ -321,6 +364,7 @@ class _ControlGrid extends StatelessWidget {
                   icon: Icons.bolt_rounded,
                   label: '펌프 켜기',
                   filled: pumpOn,
+                  enabled: enabled,
                   onTap: () => onPump(true),
                 ),
               ),
@@ -330,6 +374,7 @@ class _ControlGrid extends StatelessWidget {
                   icon: Icons.power_settings_new_rounded,
                   label: '펌프 끄기',
                   filled: !pumpOn,
+                  enabled: enabled,
                   onTap: () => onPump(false),
                 ),
               ),
@@ -348,6 +393,7 @@ class _ControlButton extends StatelessWidget {
     required this.filled,
     required this.onTap,
     this.color,
+    this.enabled = true,
   });
 
   final IconData icon;
@@ -355,6 +401,7 @@ class _ControlButton extends StatelessWidget {
   final bool filled;
   final VoidCallback onTap;
   final Color? color;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -363,13 +410,13 @@ class _ControlButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: color ?? Theme.of(context).colorScheme.primary,
         ),
-        onPressed: onTap,
+        onPressed: enabled ? onTap : null,
         icon: Icon(icon, size: 20),
         label: Text(label),
       );
     }
     return OutlinedButton.icon(
-      onPressed: onTap,
+      onPressed: enabled ? onTap : null,
       icon: Icon(icon, size: 20),
       label: Text(label),
     );
