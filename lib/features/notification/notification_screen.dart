@@ -67,7 +67,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                         child: _NotificationTile(
                           item: n,
                           onTap: () => ref
-                              .read(mockApiProvider)
+                              .read(sensorApiProvider)
                               .markNotificationRead(n.id),
                         ),
                       );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/utils/risk.dart' show riskLevel, RiskLevel;
+import '../../shared/api/sensor_api.dart';
 import '../../shared/mock/mock_api.dart';
 import '../../shared/mock/mock_data.dart';
 import '../../shared/models/app_notification.dart';
@@ -12,19 +13,25 @@ import '../../shared/models/recommendation.dart';
 import '../../shared/models/task_item.dart';
 import '../../shared/models/telemetry.dart';
 import '../../shared/models/twin_state.dart';
+import '../../shared/remote/real_api.dart';
 
-final mockApiProvider = Provider.autoDispose<MockApi>((ref) {
-  final api = MockApi();
+/// --dart-define=API_BASE_URL=http://... 지정 시 실제 백엔드(FastAPI)에 연결,
+/// 그 외에는 데모용 [MockApi]를 사용한다.
+final sensorApiProvider = Provider.autoDispose<SensorApi>((ref) {
+  const baseUrl = String.fromEnvironment('API_BASE_URL');
+  final api = baseUrl.isEmpty
+      ? MockApi() as SensorApi
+      : RealApi(baseUrl: baseUrl) as SensorApi;
   ref.onDispose(api.dispose);
   return api;
 });
 
 final telemetryProvider = StreamProvider.autoDispose<Telemetry>(
-  (ref) => ref.watch(mockApiProvider).telemetry(),
+  (ref) => ref.watch(sensorApiProvider).telemetry(),
 );
 
 final twinProvider = StreamProvider.autoDispose<TwinState>(
-  (ref) => ref.watch(mockApiProvider).twin(),
+  (ref) => ref.watch(sensorApiProvider).twin(),
 );
 
 final journalProvider = FutureProvider.autoDispose<List<JournalEntry>>(
@@ -67,7 +74,7 @@ class SelectedPaddyNotifier extends Notifier<String> {
   void select(String id) {
     if (state == id) return;
     state = id;
-    ref.read(mockApiProvider).select(id);
+    ref.read(sensorApiProvider).select(id);
   }
 }
 
@@ -132,7 +139,7 @@ final recommendationProvider =
 );
 
 final notificationsProvider = StreamProvider.autoDispose<List<AppNotification>>(
-  (ref) => ref.watch(mockApiProvider).notifications(),
+  (ref) => ref.watch(sensorApiProvider).notifications(),
 );
 
 class ChatNotifier extends Notifier<List<ChatMessage>> {

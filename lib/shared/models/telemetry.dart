@@ -30,4 +30,21 @@ class Telemetry {
   final double methaneScore;
   final double orpDelta1h;
   final bool rain3h;
+
+  factory Telemetry.fromJson(Map<String, dynamic> json) => Telemetry(
+        paddyId: json['paddy_id'] as String,
+        orp: (json['orp'] as num).toDouble(),
+        ec: (json['ec'] as num).toDouble(),
+        waterLevel: (json['water_level'] as num).toDouble(),
+        soilMoisture: (json['soil_moisture'] as num).toDouble(),
+        waterTemp: (json['water_temp'] as num).toDouble(),
+        batterySoc: (json['battery_soc'] as num).toDouble(),
+        solarV: (json['solar_v'] as num).toDouble(),
+        gateOpen: json['gate_open'] as bool,
+        pumpOn: json['pump_on'] as bool,
+        rssi: (json['rssi'] as num).toDouble(),
+        methaneScore: (json['methane_score'] as num).toDouble(),
+        orpDelta1h: (json['orp_delta_1h'] as num).toDouble(),
+        rain3h: json['rain_3h'] as bool,
+      );
 }

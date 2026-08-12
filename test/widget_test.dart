@@ -13,6 +13,7 @@ import 'package:smart_rice_ai/features/notification/notification_screen.dart';
 import 'package:smart_rice_ai/features/paddy/paddy_screen.dart';
 import 'package:smart_rice_ai/main.dart';
 import 'package:smart_rice_ai/shared/mock/mock_data.dart';
+import 'package:smart_rice_ai/shared/models/app_notification.dart';
 import 'package:smart_rice_ai/shared/models/telemetry.dart';
 import 'package:smart_rice_ai/shared/models/twin_state.dart';
 
@@ -86,6 +87,66 @@ void main() {
       expect(riskLabel(0.5), '주의');
       expect(riskLabel(0.7), '위험');
       expect(riskLabel(0.9), '심각');
+    });
+  });
+
+  group('api json contract', () {
+    test('telemetry parses backend json', () {
+      final t = Telemetry.fromJson(const {
+        'paddy_id': 'paddy_a',
+        'orp': 310.2,
+        'ec': 1.28,
+        'water_level': 5.8,
+        'soil_moisture': 40.2,
+        'water_temp': 26.0,
+        'battery_soc': 78.5,
+        'solar_v': 18.2,
+        'gate_open': false,
+        'pump_on': false,
+        'rssi': -62,
+        'methane_score': 0.78,
+        'orp_delta_1h': -10.3,
+        'rain_3h': false,
+      });
+      expect(t.paddyId, 'paddy_a');
+      expect(t.orp, 310.2);
+      expect(t.waterLevel, 5.8);
+      expect(t.gateOpen, isFalse);
+      expect(t.pumpOn, isFalse);
+      expect(t.methaneScore, 0.78);
+    });
+
+    test('twin parses awd phase from backend json', () {
+      final twin = TwinState.fromJson(const {
+        'paddy_id': 'paddy_a',
+        'water_level': 5.8,
+        'predicted_level_3h': 4.0,
+        'orp': 310.2,
+        'predicted_orp_3h': 325.0,
+        'methane_score': 0.78,
+        'gate_open': true,
+        'pump_on': false,
+        'weather': 'sunny',
+        'temp_c': 28.0,
+        'rain_3h': false,
+        'awd_phase': 'draining',
+      });
+      expect(twin.awdPhase, 'draining');
+      expect(twin.predictedLevel3h, 4.0);
+    });
+
+    test('notification parses type by name', () {
+      final n = AppNotification.fromJson(const {
+        'id': 'paddy_a_1_awdDrain',
+        'time': '2026-08-12T07:17:49+00:00',
+        'type': 'awdDrain',
+        'title': '논 A · AWD 배수 시작',
+        'body': '배수 시작',
+        'read': true,
+      });
+      expect(n.type, NotificationType.awdDrain);
+      expect(n.read, isTrue);
+      expect(n.time.year, 2026);
     });
   });
 

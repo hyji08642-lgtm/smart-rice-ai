@@ -59,14 +59,14 @@ class ControlScreen extends ConsumerWidget {
   }
 
   void _setGate(BuildContext context, WidgetRef ref, bool open) {
-    ref.read(mockApiProvider).setGateOpen(open);
+    ref.read(sensorApiProvider).setGateOpen(open);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(open ? '수문을 열었습니다' : '수문을 닫았습니다')),
     );
   }
 
   void _setPump(BuildContext context, WidgetRef ref, bool on) {
-    ref.read(mockApiProvider).setPumpOn(on);
+    ref.read(sensorApiProvider).setPumpOn(on);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(on ? '펌프를 켰습니다' : '펌프를 껐습니다')),
     );
@@ -74,8 +74,8 @@ class ControlScreen extends ConsumerWidget {
 
   void _apply(BuildContext context, WidgetRef ref) {
     ref.read(recommendationProvider.notifier).approve();
-    ref.read(mockApiProvider).setGateOpen(true);
-    ref.read(mockApiProvider).setPumpOn(false);
+    ref.read(sensorApiProvider).setGateOpen(true);
+    ref.read(sensorApiProvider).setPumpOn(false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('AI 추천을 적용했습니다. AWD 배수를 시작합니다.')),
     );
@@ -96,7 +96,7 @@ class ControlScreen extends ConsumerWidget {
             style: FilledButton.styleFrom(backgroundColor: AppColors.riskSevere),
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              ref.read(mockApiProvider).emergencyStop();
+              ref.read(sensorApiProvider).emergencyStop();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('긴급 정지 실행 · 펌프 OFF, 수문 CLOSE'),

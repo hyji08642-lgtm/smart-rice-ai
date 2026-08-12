@@ -28,6 +28,21 @@ class TwinState {
 
   /// AWD(간단관개) 단계: flooded(담수) / draining(배수) / dry(건조) / reflood(재관수).
   final String awdPhase;
+
+  factory TwinState.fromJson(Map<String, dynamic> json) => TwinState(
+        paddyId: json['paddy_id'] as String,
+        waterLevel: (json['water_level'] as num).toDouble(),
+        predictedLevel3h: (json['predicted_level_3h'] as num).toDouble(),
+        orp: (json['orp'] as num).toDouble(),
+        predictedOrp3h: (json['predicted_orp_3h'] as num).toDouble(),
+        methaneScore: (json['methane_score'] as num).toDouble(),
+        gateOpen: json['gate_open'] as bool,
+        pumpOn: json['pump_on'] as bool,
+        weather: json['weather'] as String,
+        tempC: (json['temp_c'] as num).toDouble(),
+        rain3h: json['rain_3h'] as bool,
+        awdPhase: json['awd_phase'] as String,
+      );
 }
 
 String awdPhaseLabel(String phase) => switch (phase) {

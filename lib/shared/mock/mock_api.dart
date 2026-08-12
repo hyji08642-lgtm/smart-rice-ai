@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../api/sensor_api.dart';
 import '../models/app_notification.dart';
 import '../models/telemetry.dart';
 import '../models/twin_state.dart';
@@ -40,7 +41,7 @@ class _PaddySim {
   String sky;
 }
 
-class MockApi {
+class MockApi implements SensorApi {
   MockApi() {
     _timer = Timer.periodic(const Duration(seconds: 3), (_) => _emit());
     _telemetryController.onListen = _emit;
@@ -122,6 +123,7 @@ class MockApi {
 
   _PaddySim get _sim => _sims[_current]!;
 
+  @override
   void select(String paddyId) {
     if (paddyId == _current) return;
     if (!_sims.containsKey(paddyId)) {
@@ -229,6 +231,7 @@ class MockApi {
         AwdPhase.reflood => 'reflood',
       };
 
+  @override
   void markNotificationRead(String id) {
     for (var i = 0; i < _notifications.length; i++) {
       final n = _notifications[i];
@@ -247,6 +250,7 @@ class MockApi {
     }
   }
 
+  @override
   void setGateOpen(bool open) {
     final s = _sim;
     s.gateOpen = open;
@@ -258,6 +262,7 @@ class MockApi {
     _emit();
   }
 
+  @override
   void setPumpOn(bool on) {
     final s = _sim;
     s.pumpOn = on;
@@ -269,6 +274,7 @@ class MockApi {
     _emit();
   }
 
+  @override
   void emergencyStop() {
     final s = _sim;
     s.pumpOn = false;
@@ -371,12 +377,16 @@ class MockApi {
     );
   }
 
+  @override
   Stream<Telemetry> telemetry() => _telemetryController.stream;
 
+  @override
   Stream<TwinState> twin() => _twinController.stream;
 
+  @override
   Stream<List<AppNotification>> notifications() => _notificationController.stream;
 
+  @override
   void dispose() {
     _timer.cancel();
     _telemetryController.close();
