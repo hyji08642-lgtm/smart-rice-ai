@@ -42,6 +42,7 @@ class TwinScene extends StatelessWidget {
     required this.weather,
     required this.stage,
     required this.riskColor,
+    required this.awdPhase,
   });
 
   final double waterLevel;
@@ -51,6 +52,7 @@ class TwinScene extends StatelessWidget {
   final String weather;
   final String stage;
   final Color riskColor;
+  final String awdPhase;
 
   @override
   Widget build(BuildContext context) {
@@ -94,11 +96,72 @@ class TwinScene extends StatelessWidget {
                     text: '${weatherLabel(weather)} · ${_phaseLabel(phase)}',
                   ),
                 ),
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 10,
+                  child: Center(child: _AwdChip(phase: awdPhase)),
+                ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _AwdChip extends StatelessWidget {
+  const _AwdChip({required this.phase});
+
+  final String phase;
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, icon, text) = switch (phase) {
+      'draining' => (
+          AppColors.info,
+          Icons.arrow_downward_rounded,
+          'AWD 배수 중',
+        ),
+      'dry' => (
+          AppColors.riskCaution,
+          Icons.grass_rounded,
+          'AWD 건조 중',
+        ),
+      'reflood' => (
+          AppColors.primary,
+          Icons.water_drop_rounded,
+          'AWD 재관수',
+        ),
+      _ => (
+          AppColors.secondary,
+          Icons.opacity_rounded,
+          'AWD 담수',
+        ),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color, width: 1.4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -461,6 +524,12 @@ class _TwinPainter extends CustomPainter {
   void _paintWater(Canvas c, Size s) {
     final maxH = s.height - _horizonY(s);
     final topY = s.height - (waterLevel / _maxLevel) * maxH;
+
+    if (waterLevel < 0.5) {
+      _paintDrySoil(c, s);
+      return;
+    }
+
     final rect = Rect.fromLTRB(_bankL, topY, s.width - _bankR, s.height);
     c.drawRect(
       rect,
@@ -502,6 +571,38 @@ class _TwinPainter extends CustomPainter {
       if (y < topY - 6) continue;
       c.drawLine(Offset(_bankL + 2, y), Offset(_bankL + 9, y), tick);
     }
+  }
+
+  void _paintDrySoil(Canvas c, Size s) {
+    final horizon = _horizonY(s);
+    final basinRect = Rect.fromLTRB(_bankL, horizon, s.width - _bankR, s.height);
+    c.drawRect(
+      basinRect,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF3F5F38), Color(0xFF2C3A26)],
+        ).createShader(basinRect),
+    );
+    final crack = Paint()
+      ..color = const Color(0xFF4A3720).withValues(alpha: 0.75)
+      ..strokeWidth = 1.3
+      ..strokeCap = StrokeCap.round;
+    var x = _bankL + 16.0;
+    while (x < s.width - _bankR - 10) {
+      final top = horizon + 14 + (x * 31 % 16);
+      c.drawLine(Offset(x, top), Offset(x + 9, top + 18), crack);
+      c.drawLine(Offset(x + 9, top + 18), Offset(x + 15, top + 12), crack);
+      c.drawLine(Offset(x + 9, top + 18), Offset(x + 5, top + 26), crack);
+      x += 28;
+    }
+    final mud = Paint()
+      ..color = const Color(0xFF2E4A2A).withValues(alpha: 0.85);
+    c.drawRect(
+      Rect.fromLTRB(_bankL, s.height - 10, s.width - _bankR, s.height),
+      mud,
+    );
   }
 
   void _paintPredicted(Canvas c, Size s) {

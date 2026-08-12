@@ -7,6 +7,7 @@ import '../../app/theme/app_colors.dart';
 import '../../shared/models/paddy.dart';
 import '../../shared/models/recommendation.dart';
 import '../../shared/models/telemetry.dart';
+import '../../shared/models/twin_state.dart';
 
 class ControlScreen extends ConsumerWidget {
   const ControlScreen({super.key});
@@ -14,6 +15,7 @@ class ControlScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(telemetryProvider).value;
+    final twin = ref.watch(twinProvider).value;
     final settings = ref.watch(settingsProvider);
     final recommendation = ref.watch(recommendationProvider);
     final paddyId = ref.watch(selectedPaddyProvider);
@@ -29,7 +31,7 @@ class ControlScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _OverviewCard(t: t),
+          _OverviewCard(t: t, awdPhase: twin?.awdPhase),
           const SizedBox(height: 12),
           _AutoControlCard(
             autoControl: settings.autoControl,
@@ -73,7 +75,7 @@ class ControlScreen extends ConsumerWidget {
   void _apply(BuildContext context, WidgetRef ref) {
     ref.read(recommendationProvider.notifier).approve();
     ref.read(mockApiProvider).setGateOpen(true);
-    ref.read(mockApiProvider).setPumpOn(true);
+    ref.read(mockApiProvider).setPumpOn(false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('AI 추천을 적용했습니다. AWD 배수를 시작합니다.')),
     );
@@ -110,9 +112,10 @@ class ControlScreen extends ConsumerWidget {
 }
 
 class _OverviewCard extends StatelessWidget {
-  const _OverviewCard({required this.t});
+  const _OverviewCard({required this.t, required this.awdPhase});
 
   final Telemetry? t;
+  final String? awdPhase;
 
   @override
   Widget build(BuildContext context) {
@@ -120,6 +123,12 @@ class _OverviewCard extends StatelessWidget {
     final t = this.t;
     final gateOpen = t?.gateOpen ?? false;
     final pumpOn = t?.pumpOn ?? false;
+    final awdColor = switch (awdPhase) {
+      'draining' => AppColors.info,
+      'dry' => AppColors.riskCaution,
+      'reflood' => AppColors.primary,
+      _ => AppColors.secondary,
+    };
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,18 +156,33 @@ class _OverviewCard extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              _StatusLine(
-                icon: Icons.battery_alert_rounded,
-                color: (t != null && t.batterySoc < 30)
-                    ? AppColors.riskHigh
-                    : AppColors.riskSafe,
-                text: t == null ? '—' : '배터리 ${t.batterySoc.round()}%',
+              Expanded(
+                child: _StatusLine(
+                  icon: switch (awdPhase) {
+                    'draining' => Icons.arrow_downward_rounded,
+                    'dry' => Icons.grass_rounded,
+                    'reflood' => Icons.water_drop_rounded,
+                    _ => Icons.opacity_rounded,
+                  },
+                  color: awdColor,
+                  text: awdPhase == null ? 'AWD —' : 'AWD ${awdPhaseShort(awdPhase!)}',
+                ),
               ),
-              const SizedBox(width: 12),
-              _StatusLine(
-                icon: Icons.connected_tv_rounded,
-                color: AppColors.riskSafe,
-                text: '연결됨',
+              Expanded(
+                child: _StatusLine(
+                  icon: Icons.battery_alert_rounded,
+                  color: (t != null && t.batterySoc < 30)
+                      ? AppColors.riskHigh
+                      : AppColors.riskSafe,
+                  text: t == null ? '—' : '배터리 ${t.batterySoc.round()}%',
+                ),
+              ),
+              Expanded(
+                child: _StatusLine(
+                  icon: Icons.connected_tv_rounded,
+                  color: AppColors.riskSafe,
+                  text: '연결됨',
+                ),
               ),
             ],
           ),

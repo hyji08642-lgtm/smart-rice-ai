@@ -49,6 +49,7 @@ class PaddyScreen extends ConsumerWidget {
                       weather: twin.weather,
                       stage: paddy?.stage ?? '담수기',
                       riskColor: riskColor(twin.methaneScore),
+                      awdPhase: twin.awdPhase,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -142,6 +143,21 @@ class _PaddyHeader extends StatelessWidget {
                       icon: wIcon,
                       label: '${state.tempC.round()}°C $wLabel',
                       color: wColor,
+                    ),
+                    _InfoChip(
+                      icon: switch (state.awdPhase) {
+                        'draining' => Icons.arrow_downward_rounded,
+                        'dry' => Icons.grass_rounded,
+                        'reflood' => Icons.water_drop_rounded,
+                        _ => Icons.opacity_rounded,
+                      },
+                      label: awdPhaseLabel(state.awdPhase),
+                      color: switch (state.awdPhase) {
+                        'draining' => AppColors.info,
+                        'dry' => AppColors.riskCaution,
+                        'reflood' => AppColors.primary,
+                        _ => AppColors.secondary,
+                      },
                     ),
                     _RiskPill(score: score),
                   ],
@@ -395,15 +411,29 @@ class _AiPredictionPanel extends StatelessWidget {
     final delta = predictedRisk - state.methaneScore;
     final outlook = delta < -0.01 ? '개선' : (delta > 0.01 ? '악화' : '유지');
 
-    final insight = state.rain3h
-        ? '3시간 내 비가 와요. 수위가 올라 ORP가 낮아질 수 있으니 강우 전 배수를 마치세요.'
-        : switch (outlook) {
-            '개선' =>
-              '배수 효과가 나타나 메탄 위험이 줄어들 전망이에요. 지금 수위를 유지해 주세요.',
-            '악화' =>
-              '메탄 위험이 올라갈 수 있어요. 수문을 열어 물을 조금 빼고 수위를 확인하세요.',
-            _ => '현재 제어대로 유지하면 안정적으로 이어질 전망이에요.',
-          };
+    final insight = switch (state.awdPhase) {
+      'draining' =>
+        '배수 진행 중이에요. 수문이 열려 물이 빠지면서 ORP가 회복되고 있어요. 수위가 토양면 근처까지 내려가면 건조 단계로 넘어가요.',
+      'dry' =>
+        '건조 단계예요. 토양에 산소가 공급돼 메탄 생성이 억제되고 있어요. 건조 상태를 유지하면 ORP가 더 안정돼요.',
+      'reflood' =>
+        '물을 채우는 중이에요. 목표 수위(5~7cm)에 도달하면 담수 단계로 돌아가고, 다음 AWD 주기가 다시 시작돼요.',
+      _ => state.rain3h
+          ? '3시간 내 비가 와요. 수위가 올라 ORP가 낮아질 수 있으니 강우 전 배수를 마치세요.'
+          : switch (outlook) {
+              '개선' =>
+                '배수 효과가 나타나 메탄 위험이 줄어들 전망이에요. 지금 수위를 유지해 주세요.',
+              '악화' =>
+                '메탄 위험이 올라갈 수 있어요. 수문을 열어 물을 조금 빼고 수위를 확인하세요.',
+              _ => '현재 제어대로 유지하면 안정적으로 이어질 전망이에요.',
+            },
+    };
+    final awdColor = switch (state.awdPhase) {
+      'draining' => AppColors.info,
+      'dry' => AppColors.riskCaution,
+      'reflood' => AppColors.primary,
+      _ => AppColors.secondary,
+    };
 
     return AppCard(
       child: Column(
@@ -417,32 +447,44 @@ class _AiPredictionPanel extends StatelessWidget {
               Text('AI 예측 · 3시간 후', style: theme.textTheme.labelLarge),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _PredictStat(
-                  label: '수위',
-                  now: formatNum(state.waterLevel),
-                  predicted: formatNum(state.predictedLevel3h),
-                  unit: 'cm',
-                  delta: state.predictedLevel3h - state.waterLevel,
-                  upIsGood: false,
-                ),
+const SizedBox(height: 12),
+              Row(
+                children: [
+                  Text(
+                    'AWD 사이클 · ${awdPhaseShort(state.awdPhase)}',
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: awdColor, fontWeight: FontWeight.w700),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _PredictStat(
-                  label: 'ORP',
-                  now: formatNum(state.orp),
-                  predicted: formatNum(state.predictedOrp3h),
-                  unit: 'mV',
-                  delta: state.predictedOrp3h - state.orp,
-                  upIsGood: true,
-                ),
+              const SizedBox(height: 8),
+              _AwdSteps(current: state.awdPhase),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _PredictStat(
+                      label: '수위',
+                      now: formatNum(state.waterLevel),
+                      predicted: formatNum(state.predictedLevel3h),
+                      unit: 'cm',
+                      delta: state.predictedLevel3h - state.waterLevel,
+                      upIsGood: false,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _PredictStat(
+                      label: 'ORP',
+                      now: formatNum(state.orp),
+                      predicted: formatNum(state.predictedOrp3h),
+                      unit: 'mV',
+                      delta: state.predictedOrp3h - state.orp,
+                      upIsGood: true,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
@@ -480,6 +522,72 @@ class _AiPredictionPanel extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AwdSteps extends StatelessWidget {
+  const _AwdSteps({required this.current});
+
+  final String current;
+
+  @override
+  Widget build(BuildContext context) {
+    const steps = ['flooded', 'draining', 'dry', 'reflood'];
+    const labels = ['담수', '배수', '건조', '재관수'];
+    final idx = steps.indexOf(current);
+    final theme = Theme.of(context);
+    final doneColor = theme.colorScheme.primary;
+    final pendingColor = theme.colorScheme.outlineVariant;
+    return Row(
+      children: [
+        for (var i = 0; i < steps.length; i++) ...[
+          if (i > 0)
+            Expanded(
+              child: Container(
+                height: 2,
+                margin: const EdgeInsets.only(bottom: 16),
+                color: i <= idx ? doneColor : pendingColor,
+              ),
+            ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 15,
+                height: 15,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: i <= idx ? doneColor : pendingColor,
+                ),
+                child: i < idx
+                    ? Icon(Icons.check,
+                        size: 10, color: theme.colorScheme.onPrimary)
+                    : (i == idx
+                        ? Container(
+                            width: 5,
+                            height: 5,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                            ),
+                          )
+                        : null),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                labels[i],
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: i == idx
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                  fontWeight: i == idx ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }

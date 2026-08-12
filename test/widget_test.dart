@@ -44,6 +44,7 @@ const _twin = TwinState(
   weather: 'sunny',
   tempC: 28.0,
   rain3h: false,
+  awdPhase: 'flooded',
 );
 
 Widget _home(Telemetry t) => ProviderScope(
@@ -195,19 +196,19 @@ void main() {
     expect(button('펌프 켜기').onPressed, isNotNull);
     expect(button('펌프 끄기').onPressed, isNotNull);
 
-    await tester.tap(find.text('펌프 끄기'));
+    await tester.tap(find.text('펌프 켜기'));
     await tester.pump();
 
-    final pumpOffButton = tester.widget<FilledButton>(
+    final pumpOnButton = tester.widget<FilledButton>(
       find.ancestor(
-        of: find.text('펌프 끄기'),
+        of: find.text('펌프 켜기'),
         matching: find.byWidgetPredicate((w) => w is FilledButton),
       ),
     );
-    expect(pumpOffButton.onPressed, isNotNull);
+    expect(pumpOnButton.onPressed, isNotNull);
     expect(
       find.ancestor(
-        of: find.text('펌프 켜기'),
+        of: find.text('펌프 끄기'),
         matching: find.byWidgetPredicate((w) => w is FilledButton),
       ),
       findsNothing,
@@ -304,6 +305,8 @@ void main() {
     expect(find.text('간단관개기 · 1,200㎡'), findsOneWidget);
     expect(find.text('Digital Twin · 실시간'), findsOneWidget);
     expect(find.text('28°C 맑음'), findsOneWidget);
+    expect(find.text('AWD 담수'), findsWidgets);
+    expect(find.text('AWD 사이클 · 담수'), findsOneWidget);
     expect(find.text('센서 상태'), findsOneWidget);
     expect(find.text('토양수분'), findsOneWidget);
     expect(find.text('EC'), findsOneWidget);
