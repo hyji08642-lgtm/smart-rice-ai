@@ -1,0 +1,529 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../app/core/utils/formats.dart';
+import '../../app/core/utils/risk.dart';
+import '../../app/core/widgets/app_card.dart';
+import '../../app/core/widgets/metric_tile.dart';
+import '../../app/store/providers.dart';
+import '../../app/theme/app_colors.dart';
+import '../../shared/models/paddy.dart';
+import '../../shared/models/telemetry.dart';
+import '../../shared/models/twin_state.dart';
+import 'twin_scene.dart';
+
+class PaddyScreen extends ConsumerWidget {
+  const PaddyScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final twin = ref.watch(twinProvider).value;
+    final telemetry = ref.watch(telemetryProvider).value;
+    final paddyId = ref.watch(selectedPaddyProvider);
+    final paddies = ref.watch(paddiesProvider);
+    final paddy = paddies
+        .cast<Paddy?>()
+        .firstWhere((p) => p?.id == paddyId, orElse: () => null);
+
+    return Scaffold(
+      appBar: AppBar(title: Text(paddy?.name ?? '논 보기')),
+      body: SafeArea(
+        child: (twin == null || telemetry == null)
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _PaddyHeader(paddy: paddy, state: twin),
+                  const SizedBox(height: 16),
+                  Text('Digital Twin · 실시간',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 12),
+                  AspectRatio(
+                    aspectRatio: 4 / 3,
+                    child: TwinScene(
+                      waterLevel: twin.waterLevel,
+                      predictedLevel: twin.predictedLevel3h,
+                      gateOpen: twin.gateOpen,
+                      pumpOn: twin.pumpOn,
+                      weather: twin.weather,
+                      stage: paddy?.stage ?? '담수기',
+                      riskColor: riskColor(twin.methaneScore),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('센서 상태',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 12),
+                  _SensorGrid(telemetry: telemetry),
+                  const SizedBox(height: 16),
+                  _AiPredictionPanel(state: twin),
+                  const SizedBox(height: 16),
+                  _EquipmentRow(state: twin),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => context.push('/control'),
+                      icon: const Icon(Icons.tune_rounded, size: 18),
+                      label: const Text('원격 제어로 이동'),
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _PaddyHeader extends StatelessWidget {
+  const _PaddyHeader({required this.paddy, required this.state});
+
+  final Paddy? paddy;
+  final TwinState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final paddy = this.paddy;
+    final score = paddy?.riskScore ?? state.methaneScore;
+    final color = riskColor(score);
+    final isRain = state.rain3h;
+    return AppCard(
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(Icons.grain_rounded, color: color, size: 28),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  paddy?.name ?? '내 논',
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${paddy?.stage ?? '담수기'} · ${paddy?.area ?? '1,000㎡'}',
+                  style: theme.textTheme.labelMedium,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _InfoChip(
+                      icon: isRain
+                          ? Icons.water_drop_rounded
+                          : Icons.wb_sunny_rounded,
+                      label:
+                          '${state.tempC.round()}°C ${isRain ? '비' : '맑음'}',
+                      color: isRain ? AppColors.info : AppColors.riskCaution,
+                    ),
+                    _RiskPill(score: score),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: color, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RiskPill extends StatelessWidget {
+  const _RiskPill({required this.score});
+
+  final double score;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = riskColor(score);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            '메탄 ${riskLabel(score)}',
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: color, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Color _orpColor(double v) {
+  if (v < 300) return AppColors.riskSevere;
+  if (v < 340) return AppColors.riskHigh;
+  if (v < 360) return AppColors.riskCaution;
+  return AppColors.riskSafe;
+}
+
+Color _rssiColor(double v) {
+  if (v >= -60) return AppColors.riskSafe;
+  if (v >= -70) return AppColors.riskCaution;
+  return AppColors.riskHigh;
+}
+
+class _SensorGrid extends StatelessWidget {
+  const _SensorGrid({required this.telemetry});
+
+  final Telemetry telemetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = telemetry;
+    final tiles = <MetricTile>[
+      MetricTile(
+        value: formatNum(t.waterLevel),
+        unit: 'cm',
+        label: '수위',
+        valueColor: AppColors.secondary,
+      ),
+      MetricTile(
+        value: formatNum(t.orp),
+        unit: 'mV',
+        label: 'ORP',
+        valueColor: _orpColor(t.orp),
+      ),
+      MetricTile(
+        value: formatNum(t.soilMoisture),
+        unit: '%',
+        label: '토양수분',
+        valueColor: AppColors.info,
+      ),
+      MetricTile(
+        value: formatNum(t.ec),
+        unit: 'dS/m',
+        label: 'EC',
+        valueColor: t.ec > 1.5 ? AppColors.riskCaution : AppColors.riskSafe,
+      ),
+      MetricTile(
+        value: formatNum(t.waterTemp),
+        unit: '°C',
+        label: '수온',
+        valueColor: AppColors.info,
+      ),
+      MetricTile(
+        value: t.batterySoc.round().toString(),
+        unit: '%',
+        label: '배터리',
+        valueColor:
+            t.batterySoc < 30 ? AppColors.riskSevere : AppColors.riskSafe,
+      ),
+      MetricTile(
+        value: formatNum(t.solarV),
+        unit: 'V',
+        label: '태양광',
+        valueColor: AppColors.riskCaution,
+      ),
+      MetricTile(
+        value: t.rssi.round().toString(),
+        unit: 'dBm',
+        label: '신호',
+        valueColor: _rssiColor(t.rssi),
+      ),
+    ];
+    return Column(
+      children: [
+        for (var i = 0; i < tiles.length; i += 2)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                Expanded(child: tiles[i]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[i + 1]),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _AiPredictionPanel extends StatelessWidget {
+  const _AiPredictionPanel({required this.state});
+
+  final TwinState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final predictedRisk = (state.methaneScore +
+            (state.predictedOrp3h - state.orp) / 200)
+        .clamp(0.0, 1.0);
+    final predColor = riskColor(predictedRisk);
+    final delta = predictedRisk - state.methaneScore;
+    final outlook = delta < -0.01 ? '개선' : (delta > 0.01 ? '악화' : '유지');
+
+    final insight = state.rain3h
+        ? '3시간 내 비가 와요. 수위가 올라 ORP가 낮아질 수 있으니 강우 전 배수를 마치세요.'
+        : switch (outlook) {
+            '개선' =>
+              '배수 효과가 나타나 메탄 위험이 줄어들 전망이에요. 지금 수위를 유지해 주세요.',
+            '악화' =>
+              '메탄 위험이 올라갈 수 있어요. 수문을 열어 물을 조금 빼고 수위를 확인하세요.',
+            _ => '현재 제어대로 유지하면 안정적으로 이어질 전망이에요.',
+          };
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_awesome_rounded,
+                  size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text('AI 예측 · 3시간 후', style: theme.textTheme.labelLarge),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _PredictStat(
+                  label: '수위',
+                  now: formatNum(state.waterLevel),
+                  predicted: formatNum(state.predictedLevel3h),
+                  unit: 'cm',
+                  delta: state.predictedLevel3h - state.waterLevel,
+                  upIsGood: false,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _PredictStat(
+                  label: 'ORP',
+                  now: formatNum(state.orp),
+                  predicted: formatNum(state.predictedOrp3h),
+                  unit: 'mV',
+                  delta: state.predictedOrp3h - state.orp,
+                  upIsGood: true,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: predColor.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.insights_rounded, size: 20, color: predColor),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '메탄 위험도 ${riskLabel(state.methaneScore)} → '
+                        '${riskLabel(predictedRisk)} 전망 · $outlook',
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  insight,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PredictStat extends StatelessWidget {
+  const _PredictStat({
+    required this.label,
+    required this.now,
+    required this.predicted,
+    required this.unit,
+    required this.delta,
+    required this.upIsGood,
+  });
+
+  final String label;
+  final String now;
+  final String predicted;
+  final String unit;
+  final double delta;
+  final bool upIsGood;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final rising = delta >= 0;
+    final trendColor = rising
+        ? (upIsGood ? AppColors.riskSafe : AppColors.riskHigh)
+        : (upIsGood ? AppColors.riskHigh : AppColors.riskSafe);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: theme.textTheme.labelSmall),
+          const SizedBox(height: 4),
+          Text(
+            '지금 $now$unit',
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          Row(
+            children: [
+              Icon(
+                rising ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                size: 15,
+                color: trendColor,
+              ),
+              const SizedBox(width: 2),
+              Text(
+                '예상 $predicted$unit (${formatSigned(delta)})',
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(color: theme.colorScheme.primary),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EquipmentRow extends StatelessWidget {
+  const _EquipmentRow({required this.state});
+
+  final TwinState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: AppCard(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.door_front_door_rounded,
+                  size: 20,
+                  color: state.gateOpen
+                      ? AppColors.secondary
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  state.gateOpen ? '수문 열림' : '수문 닫힘',
+                  style: theme.textTheme.labelLarge,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: AppCard(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.bolt_rounded,
+                  size: 20,
+                  color: state.pumpOn
+                      ? AppColors.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  state.pumpOn ? '펌프 가동' : '펌프 정지',
+                  style: theme.textTheme.labelLarge,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

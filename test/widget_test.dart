@@ -9,9 +9,11 @@ import 'package:smart_rice_ai/app/theme/app_theme.dart';
 import 'package:smart_rice_ai/features/control/control_screen.dart';
 import 'package:smart_rice_ai/features/farms/farms_screen.dart';
 import 'package:smart_rice_ai/features/home/home_screen.dart';
+import 'package:smart_rice_ai/features/paddy/paddy_screen.dart';
 import 'package:smart_rice_ai/main.dart';
 import 'package:smart_rice_ai/shared/mock/mock_data.dart';
 import 'package:smart_rice_ai/shared/models/telemetry.dart';
+import 'package:smart_rice_ai/shared/models/twin_state.dart';
 
 const _telemetry = Telemetry(
   paddyId: 'paddy_a',
@@ -27,6 +29,20 @@ const _telemetry = Telemetry(
   rssi: -62,
   methaneScore: 0.78,
   orpDelta1h: -10.3,
+  rain3h: false,
+);
+
+const _twin = TwinState(
+  paddyId: 'paddy_a',
+  waterLevel: 5.8,
+  predictedLevel3h: 4.0,
+  orp: 310.2,
+  predictedOrp3h: 325.0,
+  methaneScore: 0.78,
+  gateOpen: true,
+  pumpOn: true,
+  weather: 'sunny',
+  tempC: 28.0,
   rain3h: false,
 );
 
@@ -48,6 +64,11 @@ GoRouter _farmsRouter() => GoRouter(
           path: '/home',
           builder: (_, _) =>
               const Scaffold(body: Center(child: Text('HOME'))),
+        ),
+        GoRoute(
+          path: '/paddy',
+          builder: (_, _) =>
+              const Scaffold(body: Center(child: Text('PADDY'))),
         ),
         GoRoute(
           path: '/farms',
@@ -240,6 +261,56 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('논 C'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
+
+  testWidgets('farms paddy tap navigates to paddy view', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(child: MaterialApp.router(routerConfig: _farmsRouter())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('논 B'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PADDY'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
+
+  testWidgets('paddy view shows identity, sensors and twin', (tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          telemetryProvider.overrideWith((ref) => Stream.value(_telemetry)),
+          twinProvider.overrideWith((ref) => Stream.value(_twin)),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: const PaddyScreen(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('논 A'), findsWidgets);
+    expect(find.text('간단관개기 · 1,200㎡'), findsOneWidget);
+    expect(find.text('Digital Twin · 실시간'), findsOneWidget);
+    expect(find.text('28°C 맑음'), findsOneWidget);
+    expect(find.text('센서 상태'), findsOneWidget);
+    expect(find.text('토양수분'), findsOneWidget);
+    expect(find.text('EC'), findsOneWidget);
+    expect(find.text('신호'), findsOneWidget);
+    expect(find.text('AI 예측 · 3시간 후'), findsOneWidget);
+    expect(find.text('수문 열림'), findsOneWidget);
+    expect(find.text('펌프 가동'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();

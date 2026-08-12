@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -49,7 +49,7 @@ class HomeScreen extends ConsumerWidget {
             Text('바로가기', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             _Shortcuts(
-              onTwin: () => context.push('/twin'),
+              onPaddy: () => context.push('/paddy'),
               onControl: () => context.go('/control'),
               onChat: () => context.push('/chat'),
               onJournal: () => context.go('/journal'),
@@ -431,13 +431,13 @@ class _Stat extends StatelessWidget {
 
 class _Shortcuts extends StatelessWidget {
   const _Shortcuts({
-    required this.onTwin,
+    required this.onPaddy,
     required this.onControl,
     required this.onChat,
     required this.onJournal,
   });
 
-  final VoidCallback onTwin;
+  final VoidCallback onPaddy;
   final VoidCallback onControl;
   final VoidCallback onChat;
   final VoidCallback onJournal;
@@ -450,7 +450,7 @@ class _Shortcuts extends StatelessWidget {
           child: _Shortcut(
             icon: Icons.grain_rounded,
             label: '논 보기',
-            onTap: onTwin,
+            onTap: onPaddy,
           ),
         ),
         const SizedBox(width: 10),

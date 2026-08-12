@@ -42,7 +42,7 @@ class FarmsScreen extends ConsumerWidget {
                 deletable: paddies.length > 1,
                 onTap: () {
                   ref.read(selectedPaddyProvider.notifier).select(paddy.id);
-                  context.go('/home');
+                  context.go('/paddy');
                 },
                 onDelete: () => _confirmDelete(context, ref, paddy, paddies),
               ),

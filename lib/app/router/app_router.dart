@@ -6,9 +6,9 @@ import '../../features/farms/farms_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/journal/journal_screen.dart';
 import '../../features/notification/notification_screen.dart';
+import '../../features/paddy/paddy_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/splash/splash_screen.dart';
-import '../../features/twin/twin_screen.dart';
 import '../core/widgets/app_shell.dart';
 
 final appRouter = GoRouter(
@@ -65,8 +65,8 @@ final appRouter = GoRouter(
       ],
     ),
     GoRoute(
-      path: '/twin',
-      builder: (context, state) => const TwinScreen(),
+      path: '/paddy',
+      builder: (context, state) => const PaddyScreen(),
     ),
     GoRoute(
       path: '/chat',
