@@ -6,7 +6,7 @@ import '../../app/store/providers.dart';
 import '../../app/theme/app_colors.dart';
 import '../../shared/models/app_notification.dart';
 
-enum _Filter { all, rain, methaneRisk, ecRisk, battery }
+enum _Filter { all, methaneRisk, awdDrain, awdDry, awdReflood }
 
 class NotificationScreen extends ConsumerStatefulWidget {
   const NotificationScreen({super.key});
@@ -21,14 +21,17 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final notifications = ref.watch(notificationsProvider);
+    final notifications =
+        ref.watch(notificationsProvider).value ?? const <AppNotification>[];
     final filtered = notifications.where((n) {
       return switch (_filter) {
         _Filter.all => true,
-        _Filter.rain => n.type == NotificationType.rain,
         _Filter.methaneRisk => n.type == NotificationType.methaneRisk,
-        _Filter.ecRisk => n.type == NotificationType.ecRisk,
-        _Filter.battery => n.type == NotificationType.battery,
+        _Filter.awdDrain => n.type == NotificationType.awdDrain,
+        _Filter.awdDry => n.type == NotificationType.awdDry,
+        _Filter.awdReflood =>
+          n.type == NotificationType.awdReflood ||
+              n.type == NotificationType.awdFlood,
       };
     }).toList();
 
@@ -63,8 +66,9 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                         padding: const EdgeInsets.only(bottom: 10),
                         child: _NotificationTile(
                           item: n,
-                          onTap: () =>
-                              ref.read(notificationsProvider.notifier).markRead(n.id),
+                          onTap: () => ref
+                              .read(mockApiProvider)
+                              .markNotificationRead(n.id),
                         ),
                       );
                     },
@@ -77,10 +81,10 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
 
   String _filterLabel(_Filter f) => switch (f) {
         _Filter.all => '전체',
-        _Filter.rain => '강우',
         _Filter.methaneRisk => '메탄',
-        _Filter.ecRisk => 'EC',
-        _Filter.battery => '배터리',
+        _Filter.awdDrain => '배수',
+        _Filter.awdDry => '건조',
+        _Filter.awdReflood => '재관수',
       };
 }
 
@@ -94,11 +98,14 @@ class _NotificationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final (icon, color) = switch (item.type) {
-      NotificationType.rain => (Icons.water_drop_rounded, AppColors.info),
       NotificationType.methaneRisk =>
         (Icons.auto_awesome_rounded, AppColors.riskHigh),
-      NotificationType.ecRisk => (Icons.bolt_rounded, AppColors.riskSevere),
-      NotificationType.battery => (Icons.battery_alert_rounded, AppColors.riskCaution),
+      NotificationType.awdDrain =>
+        (Icons.arrow_downward_rounded, AppColors.info),
+      NotificationType.awdDry => (Icons.grass_rounded, AppColors.riskCaution),
+      NotificationType.awdReflood =>
+        (Icons.water_drop_rounded, AppColors.primary),
+      NotificationType.awdFlood => (Icons.opacity_rounded, AppColors.secondary),
     };
     return Material(
       color: item.read

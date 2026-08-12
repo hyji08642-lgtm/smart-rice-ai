@@ -9,6 +9,7 @@ import 'package:smart_rice_ai/app/theme/app_theme.dart';
 import 'package:smart_rice_ai/features/control/control_screen.dart';
 import 'package:smart_rice_ai/features/farms/farms_screen.dart';
 import 'package:smart_rice_ai/features/home/home_screen.dart';
+import 'package:smart_rice_ai/features/notification/notification_screen.dart';
 import 'package:smart_rice_ai/features/paddy/paddy_screen.dart';
 import 'package:smart_rice_ai/main.dart';
 import 'package:smart_rice_ai/shared/mock/mock_data.dart';
@@ -277,6 +278,29 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('PADDY'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
+
+  testWidgets('notification screen shows only AWD related alerts', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: const NotificationScreen(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('알림'), findsWidgets);
+    expect(find.textContaining('논 A · AWD'), findsWidgets);
+    expect(find.textContaining('논 A · 메탄 위험'), findsOneWidget);
+    expect(find.text('강우 예보'), findsNothing);
+    expect(find.text('EC 이상'), findsNothing);
+    expect(find.text('배터리 부족'), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();

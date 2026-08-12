@@ -1,4 +1,3 @@
-import '../models/app_notification.dart';
 import '../models/chat_message.dart';
 import '../models/journal_entry.dart';
 import '../models/paddy.dart';
@@ -112,41 +111,6 @@ class MockData {
         title: '강우 예보 수신',
         type: JournalEventType.notice,
         detail: '3h 내 강우 80%',
-      ),
-    ];
-  }
-
-  static List<AppNotification> notifications() {
-    final now = DateTime.now();
-    return [
-      AppNotification(
-        id: 'n1',
-        time: now.subtract(const Duration(minutes: 12)),
-        type: NotificationType.rain,
-        title: '강우 예보',
-        body: '3시간 후 비가 와요. 배수 준비를 마쳤어요.',
-        read: true,
-      ),
-      AppNotification(
-        id: 'n2',
-        time: now.subtract(const Duration(hours: 1)),
-        type: NotificationType.methaneRisk,
-        title: '메탄 위험',
-        body: '논 A의 메탄 위험이 높아졌어요. 배수를 권장해요.',
-      ),
-      AppNotification(
-        id: 'n3',
-        time: now.subtract(const Duration(hours: 2)),
-        type: NotificationType.ecRisk,
-        title: 'EC 이상',
-        body: 'EC가 올라가고 있어요. 비료 사용량을 확인해 주세요.',
-      ),
-      AppNotification(
-        id: 'n4',
-        time: now.subtract(const Duration(hours: 3)),
-        type: NotificationType.battery,
-        title: '배터리 부족',
-        body: '배터리가 28%예요. 충전을 확인해 주세요.',
       ),
     ];
   }

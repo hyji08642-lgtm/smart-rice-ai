@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../models/app_notification.dart';
 import '../models/telemetry.dart';
 import '../models/twin_state.dart';
 
@@ -44,7 +45,16 @@ class MockApi {
     _timer = Timer.periodic(const Duration(seconds: 3), (_) => _emit());
     _telemetryController.onListen = _emit;
     _twinController.onListen = _emit;
+    _notificationController.onListen = _seedNotifications;
   }
+
+  static const Map<String, String> _names = {
+    'paddy_a': '논 A',
+    'paddy_b': '논 B',
+    'paddy_c': '논 C',
+  };
+
+  String _paddyName(String id) => _names[id] ?? '내 논';
 
   final Map<String, _PaddySim> _sims = {
     'paddy_a': _PaddySim(
@@ -103,7 +113,12 @@ class MockApi {
       StreamController<Telemetry>.broadcast();
   final StreamController<TwinState> _twinController =
       StreamController<TwinState>.broadcast();
+  final StreamController<List<AppNotification>> _notificationController =
+      StreamController<List<AppNotification>>.broadcast();
   late final Timer _timer;
+
+  final List<AppNotification> _notifications = [];
+  int _notifSeq = 0;
 
   _PaddySim get _sim => _sims[_current]!;
 
@@ -133,6 +148,103 @@ class MockApi {
   void _setPhase(_PaddySim s, AwdPhase phase) {
     s.awd = phase;
     s.phaseTick = 0;
+    _addNotification(_phaseNotification(phase, s));
+  }
+
+  AppNotification _phaseNotification(AwdPhase phase, _PaddySim s) {
+    _notifSeq++;
+    final name = _paddyName(_current);
+    final orp = s.orp.round();
+    final wl = s.waterLevel.toStringAsFixed(1);
+    return switch (phase) {
+      AwdPhase.draining => AppNotification(
+          id: 'awd_${_notifSeq}_drain',
+          time: DateTime.now(),
+          type: NotificationType.awdDrain,
+          title: '$name · AWD 배수 시작',
+          body: 'ORP $orp mV로 메탄 위험이 커져 수문을 열고 배수를 시작했어요.',
+        ),
+      AwdPhase.dry => AppNotification(
+          id: 'awd_${_notifSeq}_dry',
+          time: DateTime.now(),
+          type: NotificationType.awdDry,
+          title: '$name · 건조 단계',
+          body: '수위 $wl cm로 토양이 드러났어요. ORP가 회복되고 있어요.',
+        ),
+      AwdPhase.reflood => AppNotification(
+          id: 'awd_${_notifSeq}_reflood',
+          time: DateTime.now(),
+          type: NotificationType.awdReflood,
+          title: '$name · 재관수 시작',
+          body: '건조가 끝났어요. 펌프로 물을 채워 목표 수위 5~7cm를 맞춰요.',
+        ),
+      AwdPhase.flooded => AppNotification(
+          id: 'awd_${_notifSeq}_flood',
+          time: DateTime.now(),
+          type: NotificationType.awdFlood,
+          title: '$name · 담수 완료',
+          body: '수위 $wl cm에 도달했어요. 다음 AWD 주기를 준비해요.',
+        ),
+    };
+  }
+
+  void _addNotification(AppNotification n) {
+    _notifications.insert(0, n);
+    if (_notifications.length > 40) _notifications.removeLast();
+    _notificationController.add(List.unmodifiable(_notifications));
+  }
+
+  void _seedNotifications() {
+    if (_notifications.isNotEmpty) return;
+    final s = _sim;
+    final name = _paddyName(_current);
+    _addNotification(AppNotification(
+      id: 'awd_seed_phase',
+      time: DateTime.now().subtract(const Duration(minutes: 4)),
+      type: switch (s.awd) {
+        AwdPhase.draining => NotificationType.awdDrain,
+        AwdPhase.dry => NotificationType.awdDry,
+        AwdPhase.reflood => NotificationType.awdReflood,
+        AwdPhase.flooded => NotificationType.awdFlood,
+      },
+      title: '$name · AWD ${awdPhaseShort(_phaseName(s.awd))} 중',
+      body: '현재 간단관개 사이클은 "${awdPhaseShort(_phaseName(s.awd))}" 단계예요. ORP ${s.orp.round()}mV.',
+    ));
+    final methane = ((360.0 - s.orp) / 60.0).clamp(0.15, 0.95).toDouble();
+    if (methane >= 0.6) {
+      _addNotification(AppNotification(
+        id: 'awd_seed_methane',
+        time: DateTime.now().subtract(const Duration(minutes: 2)),
+        type: NotificationType.methaneRisk,
+        title: '$name · 메탄 위험',
+        body: '메탄 위험도 ${methane.toStringAsFixed(2)}로 높아 AWD 배수를 판단 중이에요. ORP ${s.orp.round()}mV.',
+      ));
+    }
+  }
+
+  String _phaseName(AwdPhase p) => switch (p) {
+        AwdPhase.flooded => 'flooded',
+        AwdPhase.draining => 'draining',
+        AwdPhase.dry => 'dry',
+        AwdPhase.reflood => 'reflood',
+      };
+
+  void markNotificationRead(String id) {
+    for (var i = 0; i < _notifications.length; i++) {
+      final n = _notifications[i];
+      if (n.id == id && !n.read) {
+        _notifications[i] = AppNotification(
+          id: n.id,
+          time: n.time,
+          type: n.type,
+          title: n.title,
+          body: n.body,
+          read: true,
+        );
+        _notificationController.add(List.unmodifiable(_notifications));
+        return;
+      }
+    }
   }
 
   void setGateOpen(bool open) {
@@ -208,12 +320,7 @@ class MockApi {
     s.batterySoc = (s.batterySoc - 0.05).clamp(20.0, 100.0).toDouble();
 
     final methane = ((360.0 - s.orp) / 60.0).clamp(0.15, 0.95).toDouble();
-    final awdPhase = switch (s.awd) {
-      AwdPhase.flooded => 'flooded',
-      AwdPhase.draining => 'draining',
-      AwdPhase.dry => 'dry',
-      AwdPhase.reflood => 'reflood',
-    };
+    final awdPhase = _phaseName(s.awd);
     final predictedLevel = switch (s.awd) {
       AwdPhase.draining => (s.waterLevel - 2.0).clamp(0.0, 9.0).toDouble(),
       AwdPhase.dry => s.waterLevel,
@@ -268,9 +375,12 @@ class MockApi {
 
   Stream<TwinState> twin() => _twinController.stream;
 
+  Stream<List<AppNotification>> notifications() => _notificationController.stream;
+
   void dispose() {
     _timer.cancel();
     _telemetryController.close();
     _twinController.close();
+    _notificationController.close();
   }
 }

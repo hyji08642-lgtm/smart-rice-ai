@@ -1,4 +1,4 @@
-enum NotificationType { rain, methaneRisk, ecRisk, battery }
+enum NotificationType { methaneRisk, awdDrain, awdDry, awdReflood, awdFlood }
 
 class AppNotification {
   const AppNotification({

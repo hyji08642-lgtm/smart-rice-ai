@@ -131,30 +131,8 @@ final recommendationProvider =
   RecommendationNotifier.new,
 );
 
-class NotificationsNotifier extends Notifier<List<AppNotification>> {
-  @override
-  List<AppNotification> build() => MockData.notifications();
-
-  void markRead(String id) {
-    state = [
-      for (final n in state)
-        n.id == id
-            ? AppNotification(
-                id: n.id,
-                time: n.time,
-                type: n.type,
-                title: n.title,
-                body: n.body,
-                read: true,
-              )
-            : n,
-    ];
-  }
-}
-
-final notificationsProvider =
-    NotifierProvider<NotificationsNotifier, List<AppNotification>>(
-  NotificationsNotifier.new,
+final notificationsProvider = StreamProvider.autoDispose<List<AppNotification>>(
+  (ref) => ref.watch(mockApiProvider).notifications(),
 );
 
 class ChatNotifier extends Notifier<List<ChatMessage>> {
