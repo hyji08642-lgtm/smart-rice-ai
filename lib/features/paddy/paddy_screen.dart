@@ -51,6 +51,8 @@ class PaddyScreen extends ConsumerWidget {
                       riskColor: riskColor(twin.methaneScore),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  _SceneLegend(),
                   const SizedBox(height: 16),
                   Text('센서 상태',
                       style: Theme.of(context).textTheme.titleMedium),
@@ -88,7 +90,21 @@ class _PaddyHeader extends StatelessWidget {
     final paddy = this.paddy;
     final score = paddy?.riskScore ?? state.methaneScore;
     final color = riskColor(score);
-    final isRain = state.rain3h;
+    final wLabel = switch (state.weather) {
+      'rain' => '비',
+      'cloudy' => '구름',
+      _ => '맑음',
+    };
+    final wIcon = switch (state.weather) {
+      'rain' => Icons.water_drop_rounded,
+      'cloudy' => Icons.cloud_rounded,
+      _ => Icons.wb_sunny_rounded,
+    };
+    final wColor = state.weather == 'rain'
+        ? AppColors.info
+        : (state.weather == 'cloudy'
+            ? theme.colorScheme.onSurfaceVariant
+            : AppColors.riskCaution);
     return AppCard(
       child: Row(
         children: [
@@ -123,12 +139,9 @@ class _PaddyHeader extends StatelessWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     _InfoChip(
-                      icon: isRain
-                          ? Icons.water_drop_rounded
-                          : Icons.wb_sunny_rounded,
-                      label:
-                          '${state.tempC.round()}°C ${isRain ? '비' : '맑음'}',
-                      color: isRain ? AppColors.info : AppColors.riskCaution,
+                      icon: wIcon,
+                      label: '${state.tempC.round()}°C $wLabel',
+                      color: wColor,
                     ),
                     _RiskPill(score: score),
                   ],
@@ -226,6 +239,68 @@ Color _rssiColor(double v) {
   if (v >= -60) return AppColors.riskSafe;
   if (v >= -70) return AppColors.riskCaution;
   return AppColors.riskHigh;
+}
+
+class _SceneLegend extends StatelessWidget {
+  const _SceneLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        _LegendItem(color: AppColors.secondary, label: '물'),
+        _LegendItem(color: const Color(0xFF689F38), label: '벼'),
+        _LegendItem(color: AppColors.riskSafe, label: '수문'),
+        _LegendItem(color: AppColors.primary, label: '펌프'),
+        _LegendItem(
+          color: Colors.white70,
+          label: '예상 수위',
+          dash: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _LegendItem extends StatelessWidget {
+  const _LegendItem({
+    required this.color,
+    required this.label,
+    this.dash = false,
+  });
+
+  final Color color;
+  final String label;
+  final bool dash;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (dash)
+          Container(
+            width: 14,
+            height: 2,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(1),
+            ),
+          )
+        else
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+        const SizedBox(width: 5),
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
+      ],
+    );
+  }
 }
 
 class _SensorGrid extends StatelessWidget {

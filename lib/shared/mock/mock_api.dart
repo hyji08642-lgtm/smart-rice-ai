@@ -16,6 +16,7 @@ class _PaddySim {
     required this.gateOpen,
     required this.pumpOn,
     required this.rain3h,
+    required this.sky,
   });
 
   double orp;
@@ -29,6 +30,7 @@ class _PaddySim {
   bool gateOpen;
   bool pumpOn;
   bool rain3h;
+  String sky;
 }
 
 class MockApi {
@@ -51,6 +53,7 @@ class MockApi {
       gateOpen: true,
       pumpOn: true,
       rain3h: false,
+      sky: 'sunny',
     ),
     'paddy_b': _PaddySim(
       orp: 385.0,
@@ -64,6 +67,7 @@ class MockApi {
       gateOpen: false,
       pumpOn: false,
       rain3h: false,
+      sky: 'cloudy',
     ),
     'paddy_c': _PaddySim(
       orp: 300.5,
@@ -77,6 +81,7 @@ class MockApi {
       gateOpen: true,
       pumpOn: false,
       rain3h: true,
+      sky: 'rain',
     ),
   };
 
@@ -106,6 +111,7 @@ class MockApi {
         gateOpen: false,
         pumpOn: false,
         rain3h: false,
+        sky: 'sunny',
       );
     }
     _current = paddyId;
@@ -171,7 +177,7 @@ class MockApi {
         methaneScore: methane,
         gateOpen: s.gateOpen,
         pumpOn: s.pumpOn,
-        weather: s.rain3h ? 'rain' : 'sunny',
+        weather: s.sky,
         tempC: 28.0,
         rain3h: s.rain3h,
       ),
