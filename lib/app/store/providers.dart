@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/utils/risk.dart' show riskLevel, RiskLevel;
 import '../../shared/api/account_api.dart';
@@ -47,7 +48,12 @@ final sensorApiProvider = Provider.autoDispose<SensorApi>((ref) {
 });
 
 /// 현재 로그인 세션. null 이면 비로그인 상태다.
+///
+/// 세션은 기기 로컬([SharedPreferences])에 저장되어 브라우저/기기마다
+/// 독립적으로 유지·복원된다. 로그아웃 시 해당 기기의 세션만 삭제된다.
 class AuthNotifier extends Notifier<AuthSession?> {
+  static const _kToken = 'auth_token';
+
   @override
   AuthSession? build() => null;
 
@@ -55,6 +61,7 @@ class AuthNotifier extends Notifier<AuthSession?> {
     final session =
         await ref.read(accountApiProvider).login(username, password);
     state = session;
+    await _persist(session);
     await _loadAccountData();
     return session;
   }
@@ -63,15 +70,40 @@ class AuthNotifier extends Notifier<AuthSession?> {
     final session =
         await ref.read(accountApiProvider).signup(username, password);
     state = session;
+    await _persist(session);
     await _loadAccountData();
     return session;
   }
 
   Future<void> logout() async {
     await ref.read(accountApiProvider).logout();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kToken);
     state = null;
     ref.read(paddiesProvider.notifier).clear();
     ref.read(devicesProvider.notifier).clear();
+  }
+
+  /// 앱 시작 시 기기 로컬에 저장된 세션을 복원한다. 없으면 null 유지.
+  Future<void> restore() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(_kToken);
+    if (token == null || token.isEmpty) return;
+    final api = ref.read(accountApiProvider);
+    if (api is RealAccountApi) api.setToken(token);
+    try {
+      final user = await api.me(token);
+      state = AuthSession(token: token, user: user);
+      await _loadAccountData();
+    } catch (_) {
+      // 토큰이 만료/무효하면 로컬 세션을 지우고 비로그인으로 둔다.
+      await prefs.remove(_kToken);
+    }
+  }
+
+  Future<void> _persist(AuthSession session) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kToken, session.token);
   }
 
   Future<void> _loadAccountData() async {

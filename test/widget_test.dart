@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_rice_ai/app/core/utils/risk.dart';
 import 'package:smart_rice_ai/app/core/widgets/app_card.dart';
 import 'package:smart_rice_ai/app/store/providers.dart';
@@ -113,6 +114,10 @@ Future<ProviderContainer> _authedContainer(WidgetTester tester) async {
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   group('risk helpers', () {
     test('maps score to label', () {
       expect(riskLabel(0.2), '안전');

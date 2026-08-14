@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,7 +15,6 @@ class SplashScreen extends ConsumerStatefulWidget {
 class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _dots;
-  Timer? _timer;
 
   @override
   void initState() {
@@ -26,16 +23,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..repeat();
-    _timer = Timer(const Duration(milliseconds: 1400), () {
-      if (!mounted) return;
-      final authed = ref.read(authSessionController) != null;
-      context.go(authed ? '/home' : '/login');
-    });
+    _boot();
+  }
+
+  Future<void> _boot() async {
+    await ref.read(authSessionController.notifier).restore();
+    if (!mounted) return;
+    final authed = ref.read(authSessionController) != null;
+    context.go(authed ? '/home' : '/login');
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
     _dots.dispose();
     super.dispose();
   }
