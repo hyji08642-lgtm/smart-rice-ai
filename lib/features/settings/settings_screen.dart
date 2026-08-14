@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/store/providers.dart';
-import '../../app/theme/app_colors.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -14,6 +13,7 @@ class SettingsScreen extends ConsumerWidget {
     final notifier = ref.read(settingsProvider.notifier);
     final session = ref.watch(authSessionController);
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
     return Scaffold(
       appBar: AppBar(title: const Text('설정')),
@@ -22,10 +22,10 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           if (session != null)
             Card(
-              color: AppColors.surface,
+              color: scheme.surface,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: AppColors.line),
+                side: BorderSide(color: scheme.outlineVariant),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -35,12 +35,12 @@ class SettingsScreen extends ConsumerWidget {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.14),
+                        color: scheme.primary.withValues(alpha: 0.14),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.person_rounded,
-                        color: AppColors.primary,
+                        color: scheme.primary,
                         size: 26,
                       ),
                     ),
@@ -58,14 +58,14 @@ class SettingsScreen extends ConsumerWidget {
                           Text(
                             '로그인됨 · 사용자 ID ${session.user.id}',
                             style: theme.textTheme.labelMedium
-                                ?.copyWith(color: AppColors.textSecondary),
+                                ?.copyWith(color: scheme.onSurfaceVariant),
                           ),
                         ],
                       ),
                     ),
                     Icon(
                       Icons.verified_user_rounded,
-                      color: AppColors.riskSafe,
+                      color: scheme.primary,
                       size: 22,
                     ),
                   ],
@@ -74,18 +74,18 @@ class SettingsScreen extends ConsumerWidget {
             )
           else
             Card(
-              color: AppColors.surface,
+              color: scheme.surface,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: AppColors.line),
+                side: BorderSide(color: scheme.outlineVariant),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.person_outline_rounded,
-                      color: AppColors.textSecondary,
+                      color: scheme.onSurfaceVariant,
                       size: 26,
                     ),
                     const SizedBox(width: 14),
@@ -93,7 +93,7 @@ class SettingsScreen extends ConsumerWidget {
                       child: Text(
                         '비로그인 상태',
                         style: theme.textTheme.bodyMedium
-                            ?.copyWith(color: AppColors.textSecondary),
+                            ?.copyWith(color: scheme.onSurfaceVariant),
                       ),
                     ),
                     FilledButton(
