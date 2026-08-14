@@ -1,11 +1,12 @@
 ﻿{
     "name": "Smart Rice AI",
-    "short_name": "Smart Rice AI",
-    "start_url": ".",
+    "short_name": "Smart Rice",
+    "start_url": "/smart-rice-ai/",
+    "scope": "/smart-rice-ai/",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B1412",
+    "theme_color": "#0B1412",
+    "description": "실제 농민이 매일 쓰는 AI 농업 서비스 — 메탄 저감 AWD 관개, 다필지 논 관리, 원격 제어.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

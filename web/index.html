@@ -18,13 +18,15 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="실제 농민이 매일 쓰는 AI 농업 서비스 — 메탄 저감 AWD 관개, 다필지 논 관리, 원격 제어.">
+  <meta name="theme-color" content="#0B1412">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Smart Rice AI">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="mask-icon" href="icons/Icon-maskable-512.png" color="#2DD4A0">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
@@ -42,5 +44,15 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // PWA: 설치형 앱으로 동작하도록 서비스 워커를 등록한다.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./service_worker.js').catch(function (e) {
+          console.warn('service worker registration failed:', e);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
