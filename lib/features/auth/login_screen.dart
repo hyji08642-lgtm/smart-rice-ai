@@ -93,7 +93,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Text(
                     _isSignup
                         ? '내 농장과 기기를 관리할 계정을 만들어요.'
-                        : 'Smart Rice AI 에 다시 오신 걸 환영해요.',
+                        : 'Smart Rice AI 에 오신 걸 환영해요.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(color: AppColors.textSecondary),
