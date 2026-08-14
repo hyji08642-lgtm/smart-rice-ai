@@ -13,7 +13,7 @@ class MockDeviceScanner implements DeviceScanner {
   static const nearby = [
     ScannedDevice(
       deviceId: 'esp-new-01',
-      name: 'ESP32 관개 세트',
+      name: 'ESP32 1구역 세트',
       type: 'set',
       hasGate: true,
       hasPump: true,
@@ -21,11 +21,11 @@ class MockDeviceScanner implements DeviceScanner {
     ),
     ScannedDevice(
       deviceId: 'esp-new-02',
-      name: 'ESP32 토양 세트',
+      name: 'ESP32 2구역 세트',
       type: 'set',
       hasGate: true,
-      hasPump: false,
-      sensors: ['수위', '토양수분'],
+      hasPump: true,
+      sensors: ['수위', '수온', 'ORP', 'EC', '토양수분'],
     ),
   ];
 
