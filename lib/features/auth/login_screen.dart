@@ -159,6 +159,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ? '이미 계정이 있어요 → 로그인'
                         : '처음이에요 → 회원가입'),
                   ),
+                  const SizedBox(height: 4),
+                  TextButton(
+                    onPressed: _busy ? null : () => context.go('/home'),
+                    child: Text(
+                      '나중에 로그인',
+                      style: TextStyle(
+                        color: AppColors.textDisabled,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

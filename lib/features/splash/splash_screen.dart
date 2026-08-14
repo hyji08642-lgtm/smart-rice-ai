@@ -29,8 +29,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Future<void> _boot() async {
     await ref.read(authSessionController.notifier).restore();
     if (!mounted) return;
-    final authed = ref.read(authSessionController) != null;
-    context.go(authed ? '/home' : '/login');
+    context.go('/login');
   }
 
   @override
