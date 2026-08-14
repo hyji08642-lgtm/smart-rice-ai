@@ -372,33 +372,42 @@ class _DeviceStateCard extends StatelessWidget {
   }
 
   Widget _sensorTile(Telemetry t) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
+    return Row(
       children: [
-        _MiniStatus(
-          icon: Icons.opacity_rounded,
-          label: '수위',
-          value: '${formatNum(t.waterLevel)}cm',
-          color: AppColors.secondary,
+        Expanded(
+          child: _MiniStatus(
+            icon: Icons.opacity_rounded,
+            label: '수위',
+            value: '${formatNum(t.waterLevel)}cm',
+            color: AppColors.secondary,
+          ),
         ),
-        _MiniStatus(
-          icon: Icons.science_rounded,
-          label: 'ORP',
-          value: '${formatNum(t.orp)}mV',
-          color: _orpColor(t.orp),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _MiniStatus(
+            icon: Icons.science_rounded,
+            label: 'ORP',
+            value: '${formatNum(t.orp)}mV',
+            color: _orpColor(t.orp),
+          ),
         ),
-        _MiniStatus(
-          icon: Icons.spa_rounded,
-          label: '토양수분',
-          value: '${formatNum(t.soilMoisture)}%',
-          color: AppColors.info,
+        const SizedBox(width: 10),
+        Expanded(
+          child: _MiniStatus(
+            icon: Icons.spa_rounded,
+            label: '토양수분',
+            value: '${formatNum(t.soilMoisture)}%',
+            color: AppColors.info,
+          ),
         ),
-        _MiniStatus(
-          icon: Icons.thermostat_rounded,
-          label: '수온',
-          value: '${formatNum(t.waterTemp)}°C',
-          color: AppColors.info,
+        const SizedBox(width: 10),
+        Expanded(
+          child: _MiniStatus(
+            icon: Icons.thermostat_rounded,
+            label: '수온',
+            value: '${formatNum(t.waterTemp)}°C',
+            color: AppColors.info,
+          ),
         ),
       ],
     );
