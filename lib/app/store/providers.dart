@@ -153,11 +153,17 @@ class DevicesNotifier extends Notifier<List<Device>> {
     required String deviceId,
     required String name,
     required String type,
+    bool hasGate = false,
+    bool hasPump = false,
+    List<String> sensors = const [],
   }) async {
     final device = await ref.read(accountApiProvider).registerDevice(
           deviceId: deviceId,
           name: name,
           type: type,
+          hasGate: hasGate,
+          hasPump: hasPump,
+          sensors: sensors,
         );
     state = [...state, device];
   }

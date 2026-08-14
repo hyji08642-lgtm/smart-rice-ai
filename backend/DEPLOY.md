@@ -16,7 +16,26 @@ GitHub Pages 앱은 HTTPS 위에서 돌기 때문에, 앱의 `RealApi`가 접근
 
 둘 다 무료 티어가 있고 HTTPS·도메인을 자동 발급한다.
 
-**Render.com**
+**Render.com — Blueprint(권장)**
+
+저장소 루트의 `render.yaml` 을 이용하면 한 번에 서비스가 생긴다.
+1. [render.com](https://render.com)에 GitHub 계정으로 가입·로그인
+2. **New > Blueprint** → 이 저장소를 선택 → `render.yaml` 인식 확인 → **Apply**
+3. 대시보드에 `smart-rice-backend` Web Service가 배포된다
+4. 환경변수 `API_TOKEN` 이 비어 있으면 인증 없이 열린 상태(개발용). 설정하려면 서비스 콘솔에서 값을 입력 후 재배포
+5. 배포 완료 후 `https://smart-rice-backend.onrender.com` URL 사용
+6. 앱 빌드 시:
+   ```
+   flutter build web --release --base-href /smart-rice-ai/ \
+     --dart-define=API_BASE_URL=https://smart-rice-backend.onrender.com \
+     --dart-define=API_TOKEN=<설정했다면>
+   ```
+
+> 무료 티어는 디스크가 휘발성이라 재시작 시 SQLite 계정/논/기기 데이터가
+> 지워질 수 있다. 데모·개발용으로 적합. 영구 저장이 필요하면 `DB_PATH` 를
+> Render PostgreSQL 등 외부 DB로 바꾼다.
+
+**Render.com — Web Service (수동)**
 1. 저장소를 연결하고 새 **Web Service** 생성
 2. 루트 디렉터리: `backend`, 환경: `Python 3`
 3. 시작 명령: `uvicorn main:app --host 0.0.0.0 --port 8000`

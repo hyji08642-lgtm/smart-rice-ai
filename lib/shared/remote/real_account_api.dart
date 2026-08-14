@@ -109,11 +109,17 @@ class RealAccountApi implements AccountApi {
     required String deviceId,
     required String name,
     required String type,
+    bool hasGate = false,
+    bool hasPump = false,
+    List<String> sensors = const [],
   }) async {
     final json = await _send('POST', '/api/devices', body: {
       'device_id': deviceId,
       'name': name,
       'type': type,
+      'has_gate': hasGate,
+      'has_pump': hasPump,
+      'sensors': sensors,
     });
     return Device.fromJson(json);
   }

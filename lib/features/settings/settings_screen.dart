@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/store/providers.dart';
 
@@ -10,6 +11,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
+    final session = ref.watch(authSessionController);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -78,10 +80,13 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.logout_rounded),
             title: const Text('로그아웃'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('로그아웃은 데모에서 제공되지 않습니다')),
-            ),
+            subtitle: session == null
+                ? null
+                : Text('${session.user.username} 계정에서 나가기'),
+            onTap: () async {
+              await ref.read(authSessionController.notifier).logout();
+              if (context.mounted) context.go('/login');
+            },
           ),
         ],
       ),

@@ -74,19 +74,19 @@ class FarmsScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('내 기기 (${devices.length})',
+                Text('내 세트 (${devices.length})',
                     style: Theme.of(context).textTheme.titleMedium),
                 TextButton.icon(
                   onPressed: () => context.go('/devices'),
                   icon: const Icon(Icons.bluetooth_searching_rounded, size: 18),
-                  label: const Text('기기 등록'),
+                  label: const Text('세트 등록'),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             if (devices.isEmpty)
               Text(
-                '아직 등록된 기기가 없어요. 기기 등록에서 주변 ESP32를 찾아보세요.',
+                '아직 등록된 세트가 없어요. 기기 등록에서 주변 ESP32를 찾아보세요.',
                 style: Theme.of(context).textTheme.labelMedium,
               )
             else
@@ -121,7 +121,7 @@ class FarmsScreen extends ConsumerWidget {
       SnackBar(
         content: Text(
           '${result.name} 추가 완료'
-          '${result.deviceIds.isEmpty ? '' : ' · 기기 ${result.deviceIds.length}대 연결'}',
+          '${result.deviceIds.isEmpty ? '' : ' · 세트 ${result.deviceIds.length}대 연결'}',
         ),
       ),
     );
@@ -221,7 +221,7 @@ class _PaddyCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${paddy.stage} · ${paddy.area} · 기기 ${paddy.deviceIds.length}대',
+                  '${paddy.stage} · ${paddy.area} · 세트 ${paddy.deviceIds.length}대',
                   style: theme.textTheme.labelMedium,
                 ),
               ],
@@ -271,7 +271,7 @@ class _DeviceCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
-              device.type == 'controller'
+              device.hasGate || device.hasPump
                   ? Icons.settings_remote_rounded
                   : Icons.sensors_rounded,
               color: AppColors.primary,
@@ -287,7 +287,11 @@ class _DeviceCard extends StatelessWidget {
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(fontWeight: FontWeight.w600)),
                 Text(
-                  device.paddyId == null ? '논 미배정' : '배정된 논: ${device.paddyId}',
+                  [
+                    if (device.hasGate) '수문',
+                    if (device.hasPump) '펌프',
+                    ...device.sensors,
+                  ].join(' · '),
                   style: theme.textTheme.labelSmall
                       ?.copyWith(color: AppColors.textSecondary),
                 ),
@@ -415,12 +419,12 @@ class _AddPaddySheetState extends State<_AddPaddySheet> {
               ],
             ),
             const SizedBox(height: 16),
-            Text('연결할 기기 (${_selectedDevices.length})',
+            Text('연결할 세트 (${_selectedDevices.length})',
                 style: theme.textTheme.labelLarge),
             const SizedBox(height: 8),
             if (widget.devices.isEmpty)
               Text(
-                '등록된 기기가 없어요. 먼저 기기 등록을 해주세요.',
+                '등록된 세트가 없어요. 먼저 기기 등록을 해주세요.',
                 style: theme.textTheme.labelMedium,
               )
             else
@@ -438,7 +442,7 @@ class _AddPaddySheetState extends State<_AddPaddySheet> {
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
                   secondary: Icon(
-                    d.type == 'controller'
+                    d.hasGate || d.hasPump
                         ? Icons.settings_remote_rounded
                         : Icons.sensors_rounded,
                     size: 20,
@@ -448,7 +452,11 @@ class _AddPaddySheetState extends State<_AddPaddySheet> {
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(fontWeight: FontWeight.w600)),
                   subtitle: Text(
-                    d.type == 'controller' ? '수문/펌프 제어' : '센서 노드',
+                    [
+                      if (d.hasGate) '수문',
+                      if (d.hasPump) '펌프',
+                      ...d.sensors,
+                    ].join(' · '),
                     style: theme.textTheme.labelSmall,
                   ),
                 ),

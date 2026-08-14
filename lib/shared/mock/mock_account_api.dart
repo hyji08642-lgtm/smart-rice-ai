@@ -16,34 +16,40 @@ class MockAccountApi implements AccountApi {
 
   List<Device> _devices = [
     const Device(
-      deviceId: 'esp-gate-01',
-      name: '논 A 수문 제어기',
-      type: 'controller',
+      deviceId: 'esp-set-01',
+      name: '논 A 1구역 세트',
+      type: 'set',
       paddyId: 'paddy_a',
+      hasGate: true,
+      hasPump: true,
+      sensors: ['수위', '수온', 'ORP', 'EC', '토양수분'],
     ),
     const Device(
-      deviceId: 'esp-sense-01',
-      name: '논 A 수위·수온 센서',
-      type: 'sensor',
+      deviceId: 'esp-set-02',
+      name: '논 A 2구역 세트',
+      type: 'set',
       paddyId: 'paddy_a',
+      hasGate: true,
+      hasPump: true,
+      sensors: ['수위', '수온', 'ORP', 'EC', '토양수분'],
     ),
     const Device(
-      deviceId: 'esp-sense-02',
-      name: '논 A 토양·ORP 센서',
-      type: 'sensor',
-      paddyId: 'paddy_a',
-    ),
-    const Device(
-      deviceId: 'esp-gate-02',
-      name: '논 B 수문 제어기',
-      type: 'controller',
+      deviceId: 'esp-set-03',
+      name: '논 B 1구역 세트',
+      type: 'set',
       paddyId: 'paddy_b',
+      hasGate: true,
+      hasPump: true,
+      sensors: ['수위', '수온', 'ORP', 'EC', '토양수분'],
     ),
     const Device(
-      deviceId: 'esp-sense-03',
-      name: '논 B 센서 노드',
-      type: 'sensor',
-      paddyId: 'paddy_b',
+      deviceId: 'esp-set-04',
+      name: '논 C 1구역 세트',
+      type: 'set',
+      paddyId: 'paddy_c',
+      hasGate: true,
+      hasPump: true,
+      sensors: ['수위', '수온', 'ORP', 'EC', '토양수분'],
     ),
   ];
 
@@ -59,8 +65,8 @@ class MockAccountApi implements AccountApi {
           area: p.area,
           riskScore: p.riskScore,
           deviceIds: switch (p.id) {
-            'paddy_a' => ['esp-gate-01', 'esp-sense-01', 'esp-sense-02'],
-            'paddy_b' => ['esp-gate-02', 'esp-sense-03'],
+            'paddy_a' => ['esp-set-01', 'esp-set-02'],
+            'paddy_b' => ['esp-set-03'],
             _ => const <String>[],
           },
         ),
@@ -114,12 +120,22 @@ class MockAccountApi implements AccountApi {
     required String deviceId,
     required String name,
     required String type,
+    bool hasGate = false,
+    bool hasPump = false,
+    List<String> sensors = const [],
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     if (_devices.any((d) => d.deviceId == deviceId)) {
       throw Exception('이미 등록된 기기예요.');
     }
-    final device = Device(deviceId: deviceId, name: name, type: type);
+    final device = Device(
+      deviceId: deviceId,
+      name: name,
+      type: type,
+      hasGate: hasGate,
+      hasPump: hasPump,
+      sensors: sensors,
+    );
     _devices = [..._devices, device];
     return device;
   }

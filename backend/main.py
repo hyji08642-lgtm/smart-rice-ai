@@ -462,7 +462,10 @@ class SignupIn(BaseModel):
 class DeviceIn(BaseModel):
     device_id: str
     name: str
-    type: str = "sensor"
+    type: str = "set"
+    has_gate: bool = False
+    has_pump: bool = False
+    sensors: list[str] = []
 
 
 class PaddyIn(BaseModel):
@@ -505,7 +508,13 @@ def me(user: dict = Depends(require_user)) -> dict:
 @app.post("/api/devices", dependencies=[Depends(require_user)])
 def register_device(body: DeviceIn, user: dict = Depends(require_user)) -> dict:
     device = store.add_device(
-        user["id"], body.device_id.strip(), body.name.strip(), body.type
+        user["id"],
+        body.device_id.strip(),
+        body.name.strip(),
+        body.type,
+        body.has_gate,
+        body.has_pump,
+        body.sensors,
     )
     if device is None:
         raise HTTPException(status_code=409, detail="device already registered")

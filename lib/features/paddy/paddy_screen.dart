@@ -67,11 +67,11 @@ class PaddyScreen extends ConsumerWidget {
                   _SensorGrid(telemetry: telemetry),
                   if (paddyDevices.isNotEmpty) ...[
                     const SizedBox(height: 16),
-                    Text('연결된 기기 (${paddyDevices.length})',
-                        style: Theme.of(context).textTheme.titleMedium),
+                  Text('연결된 세트 (${paddyDevices.length})',
+                      style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 4),
                     Text(
-                      '이 논에 등록된 제품 각각의 센서 상태예요.',
+                      '이 논의 ESP32 세트 각각의 센서·수문 상태예요.',
                       style: Theme.of(context).textTheme.labelMedium,
                     ),
                     const SizedBox(height: 12),
@@ -278,7 +278,7 @@ Color _rssiColor(double v) {
   return AppColors.riskHigh;
 }
 
-/// 논에 연결된 개별 제품(ESP32)의 역할별 센서 상태.
+/// 논에 연결된 ESP32 세트(센서+수문/펌프)의 상태.
 class _DeviceStateCard extends StatelessWidget {
   const _DeviceStateCard({
     required this.device,
@@ -292,9 +292,6 @@ class _DeviceStateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final t = telemetry;
-    final widget = device.type == 'controller'
-        ? _controllerTile(t)
-        : _sensorTile(t);
     return AppCard(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -303,7 +300,7 @@ class _DeviceStateCard extends StatelessWidget {
           Row(
             children: [
               Icon(
-                device.type == 'controller'
+                device.hasGate || device.hasPump
                     ? Icons.settings_remote_rounded
                     : Icons.sensors_rounded,
                 size: 18,
@@ -318,14 +315,18 @@ class _DeviceStateCard extends StatelessWidget {
                 ),
               ),
               Text(
-                device.type == 'controller' ? '수문/펌프 제어기' : '센서 노드',
+                device.type == 'set' ? 'ESP32 세트' : device.type,
                 style: theme.textTheme.labelSmall
                     ?.copyWith(color: AppColors.textSecondary),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          widget,
+          _sensorTile(t),
+          if (device.hasGate || device.hasPump) ...[
+            const SizedBox(height: 10),
+            _controllerTile(t),
+          ],
         ],
       ),
     );
@@ -334,24 +335,28 @@ class _DeviceStateCard extends StatelessWidget {
   Widget _controllerTile(Telemetry t) {
     return Row(
       children: [
-        Expanded(
-          child: _MiniStatus(
-            icon: Icons.door_front_door_rounded,
-            label: '수문',
-            value: t.gateOpen ? '열림' : '닫힘',
-            color: t.gateOpen ? AppColors.secondary : AppColors.textSecondary,
+        if (device.hasGate) ...[
+          Expanded(
+            child: _MiniStatus(
+              icon: Icons.door_front_door_rounded,
+              label: '수문',
+              value: t.gateOpen ? '열림' : '닫힘',
+              color: t.gateOpen ? AppColors.secondary : AppColors.textSecondary,
+            ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _MiniStatus(
-            icon: Icons.bolt_rounded,
-            label: '펌프',
-            value: t.pumpOn ? '가동' : '정지',
-            color: t.pumpOn ? AppColors.primary : AppColors.textSecondary,
+          const SizedBox(width: 10),
+        ],
+        if (device.hasPump) ...[
+          Expanded(
+            child: _MiniStatus(
+              icon: Icons.bolt_rounded,
+              label: '펌프',
+              value: t.pumpOn ? '가동' : '정지',
+              color: t.pumpOn ? AppColors.primary : AppColors.textSecondary,
+            ),
           ),
-        ),
-        const SizedBox(width: 10),
+          const SizedBox(width: 10),
+        ],
         Expanded(
           child: _MiniStatus(
             icon: Icons.battery_charging_full_rounded,

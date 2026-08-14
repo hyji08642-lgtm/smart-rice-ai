@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import secrets
 import sqlite3
@@ -58,7 +59,10 @@ def _init() -> None:
                 device_id TEXT PRIMARY KEY,
                 user_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
-                type TEXT NOT NULL DEFAULT 'sensor',
+                type TEXT NOT NULL DEFAULT 'set',
+                has_gate INTEGER NOT NULL DEFAULT 0,
+                has_pump INTEGER NOT NULL DEFAULT 0,
+                sensors TEXT NOT NULL DEFAULT '[]',
                 created_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS paddies (
@@ -76,6 +80,14 @@ def _init() -> None:
             );
             """
         )
+        cols = {r[1] for r in c.execute("PRAGMA table_info(devices)")}
+        for col, ddl in (
+            ("has_gate", "ALTER TABLE devices ADD COLUMN has_gate INTEGER NOT NULL DEFAULT 0"),
+            ("has_pump", "ALTER TABLE devices ADD COLUMN has_pump INTEGER NOT NULL DEFAULT 0"),
+            ("sensors", "ALTER TABLE devices ADD COLUMN sensors TEXT NOT NULL DEFAULT '[]'"),
+        ):
+            if col not in cols:
+                c.execute(ddl)
         c.commit()
 
 
@@ -152,29 +164,63 @@ def get_user_by_token(token: str) -> dict | None:
 # 기기
 # --------------------------------------------------------------------------- #
 
-def add_device(user_id: int, device_id: str, name: str, device_type: str) -> dict | None:
+def add_device(
+    user_id: int,
+    device_id: str,
+    name: str,
+    device_type: str,
+    has_gate: bool = False,
+    has_pump: bool = False,
+    sensors: list[str] | None = None,
+) -> dict | None:
     with _lock:
         c = _get_conn()
         try:
             c.execute(
-                "INSERT INTO devices (device_id, user_id, name, type, created_at)"
-                " VALUES (?, ?, ?, ?, ?)",
-                (device_id, user_id, name, device_type, _now()),
+                "INSERT INTO devices"
+                " (device_id, user_id, name, type, has_gate, has_pump, sensors, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    device_id,
+                    user_id,
+                    name,
+                    device_type,
+                    int(has_gate),
+                    int(has_pump),
+                    json.dumps(sensors or [], ensure_ascii=False),
+                    _now(),
+                ),
             )
             c.commit()
         except sqlite3.IntegrityError:
             return None
-    return {"device_id": device_id, "name": name, "type": device_type}
+    return {
+        "device_id": device_id,
+        "name": name,
+        "type": device_type,
+        "has_gate": has_gate,
+        "has_pump": has_pump,
+        "sensors": sensors or [],
+    }
 
 
 def list_devices(user_id: int) -> list[dict]:
     with _lock:
         rows = _get_conn().execute(
-            "SELECT device_id, name, type FROM devices WHERE user_id = ? ORDER BY created_at",
+            "SELECT device_id, name, type, has_gate, has_pump, sensors"
+            " FROM devices WHERE user_id = ? ORDER BY created_at",
             (user_id,),
         ).fetchall()
     return [
-        {"device_id": r[0], "name": r[1], "type": r[2], "paddy_id": _device_paddy(r[0])}
+        {
+            "device_id": r[0],
+            "name": r[1],
+            "type": r[2],
+            "has_gate": bool(r[3]),
+            "has_pump": bool(r[4]),
+            "sensors": json.loads(r[5] or "[]"),
+            "paddy_id": _device_paddy(r[0]),
+        }
         for r in rows
     ]
 

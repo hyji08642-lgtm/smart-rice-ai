@@ -21,6 +21,9 @@ abstract class AccountApi {
     required String deviceId,
     required String name,
     required String type,
+    bool hasGate = false,
+    bool hasPump = false,
+    List<String> sensors = const [],
   });
 
   Future<void> removeDevice(String deviceId);

@@ -9,8 +9,9 @@ import '../../app/theme/app_colors.dart';
 import '../../shared/models/device.dart';
 import 'device_scanner.dart';
 
-/// 주변 ESP32 를 BLE 로 찾아 내 계정에 등록한다.
-/// 등록한 기기는 논 추가/연결 화면에서 논에 배정할 수 있다.
+/// 주변 ESP32 세트를 BLE 로 찾아 내 계정에 등록한다.
+/// ESP32 한 대는 센서와 수문/펌프 제어를 담당하는 "한 세트"다.
+/// 등록한 세트는 논 추가/연결 화면에서 논에 배정할 수 있다.
 class DevicesScreen extends ConsumerStatefulWidget {
   const DevicesScreen({super.key});
 
@@ -57,6 +58,9 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
             deviceId: d.deviceId,
             name: d.name,
             type: d.type,
+            hasGate: d.hasGate,
+            hasPump: d.hasPump,
+            sensors: d.sensors,
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -107,7 +111,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
             Text('주변 ESP32 찾기', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
-              '등록 후에는 WiFi 로 자동 연결되어 센서 데이터를 보내요.\n논에 배정하려면 내 농장에서 논 추가/연결을 이용하세요.',
+              'ESP32 한 대가 센서와 수문/펌프를 담당하는 한 세트예요.\n논이 크면 구역별로 세트를 여러 대 등록하세요.',
               style: theme.textTheme.labelMedium,
             ),
             const SizedBox(height: 12),
@@ -138,7 +142,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
-                        d.type == 'controller'
+                        d.hasGate || d.hasPump
                             ? Icons.settings_remote_rounded
                             : Icons.sensors_rounded,
                         color: AppColors.primary,
@@ -154,7 +158,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                               style: theme.textTheme.bodyMedium
                                   ?.copyWith(fontWeight: FontWeight.w600)),
                           Text(
-                            d.deviceId,
+                            d.sensors.join(' · '),
                             style: theme.textTheme.labelSmall
                                 ?.copyWith(color: AppColors.textSecondary),
                           ),
@@ -185,11 +189,11 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
               label: const Text('다시 찾기'),
             ),
             const SizedBox(height: 24),
-            Text('내 기기 (${devices.length})', style: theme.textTheme.titleMedium),
+            Text('내 세트 (${devices.length})', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             if (devices.isEmpty)
               Text(
-                '아직 등록된 기기가 없어요.',
+                '아직 등록된 세트가 없어요.',
                 style: theme.textTheme.labelMedium,
               ),
             for (final d in devices) ...[
@@ -204,7 +208,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
-                        d.type == 'controller'
+                        d.hasGate || d.hasPump
                             ? Icons.settings_remote_rounded
                             : Icons.sensors_rounded,
                         color: AppColors.primary,
@@ -219,6 +223,15 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                           Text(d.name,
                               style: theme.textTheme.bodyMedium
                                   ?.copyWith(fontWeight: FontWeight.w600)),
+                          Text(
+                            [
+                              if (d.hasGate) '수문',
+                              if (d.hasPump) '펌프',
+                              ...d.sensors,
+                            ].join(' · '),
+                            style: theme.textTheme.labelSmall
+                                ?.copyWith(color: AppColors.textSecondary),
+                          ),
                           Text(
                             d.paddyId == null
                                 ? '논 미배정'

@@ -1,0 +1,22 @@
+# Smart Rice AI — 백엔드 Render Blueprint
+#
+# 사용법:
+#   1. GitHub 저장소를 Render에 연결
+#   2. "New > Blueprint"로 이 파일 선택 → 배포
+#   3. 발급된 URL을 Flutter 빌드의 --dart-define=API_BASE_URL 로 사용
+#
+# 주의(무료 티어):
+#   Render Free Web Service는 디스크가 휘발성이라 재시작 시
+#   계정/논/기기 데이터가 지워질 수 있다. 데모/개발용으로 적합.
+#   영구 저장이 필요하면 DB_PATH 를 외부 PostgreSQL 등으로 바꾼다.
+services:
+  - type: web
+    name: smart-rice-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 8000
+    envVars:
+      - key: API_TOKEN
+        sync: false

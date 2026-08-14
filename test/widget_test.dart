@@ -495,9 +495,9 @@ void main() {
     expect(find.text('토양수분'), findsWidgets);
     expect(find.text('EC'), findsWidgets);
     expect(find.text('신호'), findsWidgets);
-    expect(find.textContaining('연결된 기기 ('), findsOneWidget);
-    expect(find.text('논 A 수문 제어기'), findsOneWidget);
-    expect(find.text('논 A 수위·수온 센서'), findsOneWidget);
+    expect(find.textContaining('연결된 세트 ('), findsOneWidget);
+    expect(find.text('논 A 1구역 세트'), findsOneWidget);
+    expect(find.text('논 A 2구역 세트'), findsOneWidget);
     expect(find.text('AI 예측 · 3시간 후'), findsOneWidget);
     expect(find.text('수문 열림'), findsOneWidget);
     expect(find.text('펌프 가동'), findsOneWidget);
