@@ -12,6 +12,7 @@ class AppShell extends StatelessWidget {
     (icon: Icons.tune_rounded, label: '원격 제어'),
     (icon: Icons.history_rounded, label: '일지'),
     (icon: Icons.notifications_rounded, label: '알림'),
+    (icon: Icons.settings_outlined, label: '설정'),
   ];
 
   void _go(int index) =>

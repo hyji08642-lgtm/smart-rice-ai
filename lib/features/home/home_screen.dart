@@ -32,8 +32,9 @@ class HomeScreen extends ConsumerWidget {
           children: [
             _Header(
               paddy: paddy,
+              onPaddy: () => context.push('/paddy'),
               onFarm: () => context.go('/farms'),
-              onSettings: () => context.push('/settings'),
+              onSettings: () => context.go('/settings'),
             ),
             const SizedBox(height: 16),
             _SummaryCard(summary: summary, score: telemetry?.methaneScore ?? 0),
@@ -62,9 +63,15 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.paddy, required this.onFarm, required this.onSettings});
+  const _Header({
+    required this.paddy,
+    required this.onPaddy,
+    required this.onFarm,
+    required this.onSettings,
+  });
 
   final Paddy? paddy;
+  final VoidCallback onPaddy;
   final VoidCallback onFarm;
   final VoidCallback onSettings;
 
@@ -74,13 +81,17 @@ class _Header extends StatelessWidget {
     final paddy = this.paddy;
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(14),
+        InkWell(
+          onTap: onPaddy,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.water_drop_rounded, color: AppColors.primary, size: 22),
           ),
-          child: const Icon(Icons.water_drop_rounded, color: AppColors.primary, size: 22),
         ),
         const SizedBox(width: 12),
         Expanded(
