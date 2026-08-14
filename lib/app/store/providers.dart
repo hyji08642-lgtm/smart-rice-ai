@@ -2,30 +2,95 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/utils/risk.dart' show riskLevel, RiskLevel;
+import '../../shared/api/account_api.dart';
 import '../../shared/api/sensor_api.dart';
+import '../../shared/mock/mock_account_api.dart';
 import '../../shared/mock/mock_api.dart';
 import '../../shared/mock/mock_data.dart';
+import '../../shared/models/account.dart';
 import '../../shared/models/app_notification.dart';
 import '../../shared/models/chat_message.dart';
+import '../../shared/models/device.dart';
 import '../../shared/models/journal_entry.dart';
 import '../../shared/models/paddy.dart';
 import '../../shared/models/recommendation.dart';
 import '../../shared/models/task_item.dart';
 import '../../shared/models/telemetry.dart';
 import '../../shared/models/twin_state.dart';
+import '../../shared/remote/real_account_api.dart';
 import '../../shared/remote/real_api.dart';
 
 /// --dart-define=API_BASE_URL=http://... 지정 시 실제 백엔드(FastAPI)에 연결,
-/// 그 외에는 데모용 [MockApi]를 사용한다. API_TOKEN도 함께 지정하면 헤더로 전달.
-final sensorApiProvider = Provider.autoDispose<SensorApi>((ref) {
+/// 그 외에는 데모용 [MockApi]를 사용한다. 로그인 세션이 있으면 그 토큰으로 인증한다.
+final accountApiProvider = Provider<AccountApi>((ref) {
   const baseUrl = String.fromEnvironment('API_BASE_URL');
-  const apiToken = String.fromEnvironment('API_TOKEN');
-  final api = baseUrl.isEmpty
-      ? MockApi() as SensorApi
-      : RealApi(baseUrl: baseUrl, apiToken: apiToken) as SensorApi;
+  if (baseUrl.isEmpty) return MockAccountApi() as AccountApi;
+  final api = RealAccountApi(baseUrl: baseUrl);
   ref.onDispose(api.dispose);
   return api;
 });
+
+/// --dart-define=API_BASE_URL=http://... 지정 시 실제 백엔드(FastAPI)에 연결,
+/// 그 외에는 데모용 [MockApi]를 사용한다. 로그인 토큰이 있으면 헤더로 전달한다.
+final sensorApiProvider = Provider.autoDispose<SensorApi>((ref) {
+  const baseUrl = String.fromEnvironment('API_BASE_URL');
+  const apiToken = String.fromEnvironment('API_TOKEN');
+  final sessionToken = ref.watch(authSessionController.select((s) => s?.token));
+  final token = (sessionToken == null || sessionToken.isEmpty)
+      ? apiToken
+      : sessionToken;
+  final api = baseUrl.isEmpty
+      ? MockApi() as SensorApi
+      : RealApi(baseUrl: baseUrl, apiToken: token) as SensorApi;
+  ref.onDispose(api.dispose);
+  return api;
+});
+
+/// 현재 로그인 세션. null 이면 비로그인 상태다.
+class AuthNotifier extends Notifier<AuthSession?> {
+  @override
+  AuthSession? build() => null;
+
+  Future<AuthSession> login(String username, String password) async {
+    final session =
+        await ref.read(accountApiProvider).login(username, password);
+    state = session;
+    await _loadAccountData();
+    return session;
+  }
+
+  Future<AuthSession> signup(String username, String password) async {
+    final session =
+        await ref.read(accountApiProvider).signup(username, password);
+    state = session;
+    await _loadAccountData();
+    return session;
+  }
+
+  Future<void> logout() async {
+    await ref.read(accountApiProvider).logout();
+    state = null;
+    ref.read(paddiesProvider.notifier).clear();
+    ref.read(devicesProvider.notifier).clear();
+  }
+
+  Future<void> _loadAccountData() async {
+    try {
+      final paddies = await ref.read(accountApiProvider).listPaddies();
+      ref.read(paddiesProvider.notifier).replaceAll(paddies);
+      if (paddies.isNotEmpty) {
+        ref.read(selectedPaddyProvider.notifier).select(paddies.first.id);
+      }
+      final devices = await ref.read(accountApiProvider).listDevices();
+      ref.read(devicesProvider.notifier).replaceAll(devices);
+    } catch (_) {
+      // 계정 데이터 로드 실패는 다음 진입 시 재시도한다.
+    }
+  }
+}
+
+final authSessionController =
+    NotifierProvider<AuthNotifier, AuthSession?>(AuthNotifier.new);
 
 final telemetryProvider = StreamProvider.autoDispose<Telemetry>(
   (ref) => ref.watch(sensorApiProvider).telemetry(),
@@ -44,28 +109,71 @@ final journalProvider = FutureProvider.autoDispose<List<JournalEntry>>(
 
 class PaddiesNotifier extends Notifier<List<Paddy>> {
   @override
-  List<Paddy> build() => MockData.paddies();
+  List<Paddy> build() => const [];
 
-  String addPaddy({
+  void clear() => state = const [];
+
+  void replaceAll(List<Paddy> paddies) => state = paddies;
+
+  Future<String> addPaddy({
     required String name,
     required String stage,
     required String area,
-  }) {
-    final id = 'paddy_${state.length + 1}';
-    state = [
-      ...state,
-      Paddy(id: id, name: name, stage: stage, area: area, riskScore: 0.3),
-    ];
-    return id;
+    List<String> deviceIds = const [],
+  }) async {
+    final paddy = await ref.read(accountApiProvider).addPaddy(
+          name: name,
+          stage: stage,
+          area: area,
+          deviceIds: deviceIds,
+        );
+    state = [...state, paddy];
+    return paddy.id;
   }
 
-  void removePaddy(String id) {
+  Future<void> removePaddy(String id) async {
+    await ref.read(accountApiProvider).removePaddy(id);
     state = state.where((p) => p.id != id).toList();
   }
 }
 
 final paddiesProvider = NotifierProvider<PaddiesNotifier, List<Paddy>>(
   PaddiesNotifier.new,
+);
+
+class DevicesNotifier extends Notifier<List<Device>> {
+  @override
+  List<Device> build() => const [];
+
+  void clear() => state = const [];
+
+  void replaceAll(List<Device> devices) => state = devices;
+
+  Future<void> register({
+    required String deviceId,
+    required String name,
+    required String type,
+  }) async {
+    final device = await ref.read(accountApiProvider).registerDevice(
+          deviceId: deviceId,
+          name: name,
+          type: type,
+        );
+    state = [...state, device];
+  }
+
+  Future<void> remove(String deviceId) async {
+    await ref.read(accountApiProvider).removeDevice(deviceId);
+    state = state.where((d) => d.deviceId != deviceId).toList();
+  }
+
+  Future<void> attachToPaddy(String paddyId, List<String> deviceIds) async {
+    await ref.read(accountApiProvider).setPaddyDevices(paddyId, deviceIds);
+  }
+}
+
+final devicesProvider = NotifierProvider<DevicesNotifier, List<Device>>(
+  DevicesNotifier.new,
 );
 
 class SelectedPaddyNotifier extends Notifier<String> {

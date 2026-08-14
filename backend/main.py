@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import os
 import threading
+import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -25,18 +26,36 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+import store
+
 TICK_SECONDS = 3.0
 MAX_NOTIFICATIONS = 40
 
-# API_TOKEN 환경변수가 설정되면 모든 API에 Authorization: Bearer <토큰>을 요구한다.
+# API_TOKEN 환경변수가 설정되면 디바이스(ESP32) 채널에 Bearer 인증을 요구한다.
+# 앱은 POST /api/auth/login 으로 받은 사용자 토큰으로 인증한다.
 API_TOKEN = os.getenv("API_TOKEN", "")
+
+async def _ticker() -> None:
+    while True:
+        await asyncio.sleep(TICK_SECONDS)
+        with _lock:
+            for p in PADDIES.values():
+                p.advance()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    task = asyncio.create_task(_ticker())
+    yield
+    task.cancel()
+
 
 app = FastAPI(title="Smart Rice AI Backend", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -44,8 +63,30 @@ _lock = threading.Lock()
 
 
 def require_auth(request: Request) -> None:
-    if API_TOKEN and request.headers.get("Authorization") != f"Bearer {API_TOKEN}":
-        raise HTTPException(status_code=401, detail="unauthorized")
+    """디바이스/서버 채널 인증: API_TOKEN 과 일치하거나 유효한 사용자 토큰이면 통과.
+
+    API_TOKEN 이 미설정된 데모 모드에서는 오픈한다.
+    """
+    header = request.headers.get("Authorization", "")
+    if header.startswith("Bearer "):
+        token = header[len("Bearer "):]
+        if API_TOKEN and token == API_TOKEN:
+            return
+        if store.get_user_by_token(token) is not None:
+            return
+    if not API_TOKEN:
+        return  # 데모 모드: 인증 없이 허용
+    raise HTTPException(status_code=401, detail="unauthorized")
+
+
+def require_user(request: Request) -> dict:
+    """앱(사용자) 전용 인증: 유효한 사용자 토큰의 user dict 를 반환."""
+    header = request.headers.get("Authorization", "")
+    if header.startswith("Bearer "):
+        user = store.get_user_by_token(header[len("Bearer "):])
+        if user is not None:
+            return user
+    raise HTTPException(status_code=401, detail="unauthorized")
 
 
 class TelemetryIn(BaseModel):
@@ -337,21 +378,6 @@ def _make_paddies() -> dict[str, PaddyState]:
 PADDIES: dict[str, PaddyState] = _make_paddies()
 
 
-async def _ticker() -> None:
-    while True:
-        await asyncio.sleep(TICK_SECONDS)
-        with _lock:
-            for p in PADDIES.values():
-                p.advance()
-
-
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    task = asyncio.create_task(_ticker())
-    yield
-    task.cancel()
-
-
 @app.get("/health")
 def health() -> dict:
     return {"ok": True}
@@ -422,3 +448,115 @@ def control(paddy_id: str, c: ControlIn) -> dict:
         p.apply_control(c)
         telemetry, twin = p.state_json()
     return {"ok": True, "telemetry": telemetry, "twin": twin}
+
+
+# --------------------------------------------------------------------------- #
+# 계정 / 기기 / 논 (앱 로그인 후 사용)
+# --------------------------------------------------------------------------- #
+
+class SignupIn(BaseModel):
+    username: str
+    password: str
+
+
+class DeviceIn(BaseModel):
+    device_id: str
+    name: str
+    type: str = "sensor"
+
+
+class PaddyIn(BaseModel):
+    name: str
+    stage: str = "담수기"
+    area: str = "1,000㎡"
+    device_ids: list[str] = []
+
+
+class PaddyDevicesIn(BaseModel):
+    device_ids: list[str] = []
+
+
+@app.post("/api/auth/signup")
+def signup(body: SignupIn) -> dict:
+    username = body.username.strip()
+    if not username or len(body.password) < 4:
+        raise HTTPException(status_code=400, detail="invalid username or password")
+    user = store.create_user(username, body.password)
+    if user is None:
+        raise HTTPException(status_code=409, detail="username taken")
+    token = store.create_session(user["id"])
+    return {"token": token, "user": user}
+
+
+@app.post("/api/auth/login")
+def login(body: SignupIn) -> dict:
+    user = store.verify_login(body.username.strip(), body.password)
+    if user is None:
+        raise HTTPException(status_code=401, detail="invalid credentials")
+    token = store.create_session(user["id"])
+    return {"token": token, "user": user}
+
+
+@app.get("/api/auth/me", dependencies=[Depends(require_user)])
+def me(user: dict = Depends(require_user)) -> dict:
+    return {"user": user}
+
+
+@app.post("/api/devices", dependencies=[Depends(require_user)])
+def register_device(body: DeviceIn, user: dict = Depends(require_user)) -> dict:
+    device = store.add_device(
+        user["id"], body.device_id.strip(), body.name.strip(), body.type
+    )
+    if device is None:
+        raise HTTPException(status_code=409, detail="device already registered")
+    return device
+
+
+@app.get("/api/devices", dependencies=[Depends(require_user)])
+def list_user_devices(user: dict = Depends(require_user)) -> list[dict]:
+    return store.list_devices(user["id"])
+
+
+@app.delete("/api/devices/{device_id}", dependencies=[Depends(require_user)])
+def delete_device(device_id: str, user: dict = Depends(require_user)) -> dict:
+    if not store.remove_device(user["id"], device_id):
+        raise HTTPException(status_code=404, detail="device not found")
+    return {"ok": True}
+
+
+@app.post("/api/paddies", dependencies=[Depends(require_user)])
+def create_paddy(body: PaddyIn, user: dict = Depends(require_user)) -> dict:
+    paddy_id = f"paddy_{user['id']}_{uuid.uuid4().hex[:6]}"
+    with _lock:
+        PADDIES[paddy_id] = PaddyState(
+            paddy_id=paddy_id,
+            name=body.name,
+            sky="sunny",
+            rain_3h=False,
+        )
+    return store.add_paddy(
+        user["id"], paddy_id, body.name, body.stage, body.area, body.device_ids
+    )
+
+
+@app.get("/api/paddies", dependencies=[Depends(require_user)])
+def list_user_paddies(user: dict = Depends(require_user)) -> list[dict]:
+    return store.list_paddies(user["id"])
+
+
+@app.delete("/api/paddies/{paddy_id}", dependencies=[Depends(require_user)])
+def delete_paddy(paddy_id: str, user: dict = Depends(require_user)) -> dict:
+    if not store.remove_paddy(user["id"], paddy_id):
+        raise HTTPException(status_code=404, detail="paddy not found")
+    with _lock:
+        PADDIES.pop(paddy_id, None)
+    return {"ok": True}
+
+
+@app.patch("/api/paddies/{paddy_id}/devices", dependencies=[Depends(require_user)])
+def patch_paddy_devices(
+    paddy_id: str, body: PaddyDevicesIn, user: dict = Depends(require_user)
+) -> dict:
+    if not store.set_paddy_devices(user["id"], paddy_id, body.device_ids):
+        raise HTTPException(status_code=404, detail="paddy not found")
+    return {"ok": True, "device_ids": body.device_ids}

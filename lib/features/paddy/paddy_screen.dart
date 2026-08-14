@@ -8,6 +8,7 @@ import '../../app/core/widgets/app_card.dart';
 import '../../app/core/widgets/metric_tile.dart';
 import '../../app/store/providers.dart';
 import '../../app/theme/app_colors.dart';
+import '../../shared/models/device.dart';
 import '../../shared/models/paddy.dart';
 import '../../shared/models/telemetry.dart';
 import '../../shared/models/twin_state.dart';
@@ -22,9 +23,14 @@ class PaddyScreen extends ConsumerWidget {
     final telemetry = ref.watch(telemetryProvider).value;
     final paddyId = ref.watch(selectedPaddyProvider);
     final paddies = ref.watch(paddiesProvider);
+    final devices = ref.watch(devicesProvider);
     final paddy = paddies
         .cast<Paddy?>()
         .firstWhere((p) => p?.id == paddyId, orElse: () => null);
+    final paddyDevices = [
+      for (final d in devices)
+        if (paddy?.deviceIds.contains(d.deviceId) ?? false) d,
+    ];
 
     return Scaffold(
       appBar: AppBar(title: Text(paddy?.name ?? '논 보기')),
@@ -59,6 +65,21 @@ class PaddyScreen extends ConsumerWidget {
                       style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 12),
                   _SensorGrid(telemetry: telemetry),
+                  if (paddyDevices.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text('연결된 기기 (${paddyDevices.length})',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    Text(
+                      '이 논에 등록된 제품 각각의 센서 상태예요.',
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    for (final d in paddyDevices) ...[
+                      _DeviceStateCard(device: d, telemetry: telemetry),
+                      const SizedBox(height: 8),
+                    ],
+                  ],
                   const SizedBox(height: 16),
                   _AiPredictionPanel(state: twin),
                   const SizedBox(height: 16),
@@ -255,6 +276,167 @@ Color _rssiColor(double v) {
   if (v >= -60) return AppColors.riskSafe;
   if (v >= -70) return AppColors.riskCaution;
   return AppColors.riskHigh;
+}
+
+/// 논에 연결된 개별 제품(ESP32)의 역할별 센서 상태.
+class _DeviceStateCard extends StatelessWidget {
+  const _DeviceStateCard({
+    required this.device,
+    required this.telemetry,
+  });
+
+  final Device device;
+  final Telemetry telemetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final t = telemetry;
+    final widget = device.type == 'controller'
+        ? _controllerTile(t)
+        : _sensorTile(t);
+    return AppCard(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                device.type == 'controller'
+                    ? Icons.settings_remote_rounded
+                    : Icons.sensors_rounded,
+                size: 18,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  device.name,
+                  style: theme.textTheme.labelLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              Text(
+                device.type == 'controller' ? '수문/펌프 제어기' : '센서 노드',
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          widget,
+        ],
+      ),
+    );
+  }
+
+  Widget _controllerTile(Telemetry t) {
+    return Row(
+      children: [
+        Expanded(
+          child: _MiniStatus(
+            icon: Icons.door_front_door_rounded,
+            label: '수문',
+            value: t.gateOpen ? '열림' : '닫힘',
+            color: t.gateOpen ? AppColors.secondary : AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _MiniStatus(
+            icon: Icons.bolt_rounded,
+            label: '펌프',
+            value: t.pumpOn ? '가동' : '정지',
+            color: t.pumpOn ? AppColors.primary : AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _MiniStatus(
+            icon: Icons.battery_charging_full_rounded,
+            label: '배터리',
+            value: '${t.batterySoc.round()}%',
+            color: t.batterySoc < 30
+                ? AppColors.riskSevere
+                : AppColors.riskSafe,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sensorTile(Telemetry t) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        _MiniStatus(
+          icon: Icons.opacity_rounded,
+          label: '수위',
+          value: '${formatNum(t.waterLevel)}cm',
+          color: AppColors.secondary,
+        ),
+        _MiniStatus(
+          icon: Icons.science_rounded,
+          label: 'ORP',
+          value: '${formatNum(t.orp)}mV',
+          color: _orpColor(t.orp),
+        ),
+        _MiniStatus(
+          icon: Icons.spa_rounded,
+          label: '토양수분',
+          value: '${formatNum(t.soilMoisture)}%',
+          color: AppColors.info,
+        ),
+        _MiniStatus(
+          icon: Icons.thermostat_rounded,
+          label: '수온',
+          value: '${formatNum(t.waterTemp)}°C',
+          color: AppColors.info,
+        ),
+      ],
+    );
+  }
+}
+
+class _MiniStatus extends StatelessWidget {
+  const _MiniStatus({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          Text(label, style: theme.textTheme.labelSmall),
+        ],
+      ),
+    );
+  }
 }
 
 class _SceneLegend extends StatelessWidget {

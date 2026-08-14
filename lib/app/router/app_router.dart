@@ -1,7 +1,9 @@
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/login_screen.dart';
 import '../../features/chat/chat_screen.dart';
 import '../../features/control/control_screen.dart';
+import '../../features/devices/devices_screen.dart';
 import '../../features/farms/farms_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/journal/journal_screen.dart';
@@ -17,6 +19,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/splash',
       builder: (context, state) => const SplashScreen(),
+    ),
+    GoRoute(
+      path: '/login',
+      builder: (context, state) => const LoginScreen(),
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) =>
@@ -75,6 +81,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/settings',
       builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/devices',
+      builder: (context, state) => const DevicesScreen(),
     ),
   ],
 );

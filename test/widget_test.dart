@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -8,12 +8,14 @@ import 'package:smart_rice_ai/app/store/providers.dart';
 import 'package:smart_rice_ai/app/theme/app_theme.dart';
 import 'package:smart_rice_ai/features/control/control_screen.dart';
 import 'package:smart_rice_ai/features/farms/farms_screen.dart';
+import 'package:smart_rice_ai/features/auth/login_screen.dart';
 import 'package:smart_rice_ai/features/home/home_screen.dart';
 import 'package:smart_rice_ai/features/notification/notification_screen.dart';
 import 'package:smart_rice_ai/features/paddy/paddy_screen.dart';
 import 'package:smart_rice_ai/main.dart';
 import 'package:smart_rice_ai/shared/mock/mock_data.dart';
 import 'package:smart_rice_ai/shared/models/app_notification.dart';
+import 'package:smart_rice_ai/shared/models/paddy.dart';
 import 'package:smart_rice_ai/shared/models/telemetry.dart';
 import 'package:smart_rice_ai/shared/models/twin_state.dart';
 
@@ -51,6 +53,9 @@ const _twin = TwinState(
 
 Widget _home(Telemetry t) => ProviderScope(
       overrides: [
+        paddiesProvider.overrideWith(
+          () => _SeededPaddiesNotifier(MockData.paddies()),
+        ),
         telemetryProvider.overrideWith((ref) => Stream.value(t)),
         journalProvider.overrideWith((ref) async => MockData.journal()),
       ],
@@ -74,11 +79,38 @@ GoRouter _farmsRouter() => GoRouter(
               const Scaffold(body: Center(child: Text('PADDY'))),
         ),
         GoRoute(
+          path: '/devices',
+          builder: (_, _) =>
+              const Scaffold(body: Center(child: Text('DEVICES'))),
+        ),
+        GoRoute(
           path: '/farms',
           builder: (_, _) => const FarmsScreen(),
         ),
       ],
     );
+
+/// 데모 계정(demo/demo1234)으로 로그인해 논/기기 시드를 로드한다.
+/// 화면을 아직 띄우지 않은 상태(라우터 미장착)에서 provider 만 준비해 두고,
+/// 이후 테스트에서 [tester.pumpWidget] 로 화면을 올린다.
+class _SeededPaddiesNotifier extends PaddiesNotifier {
+  _SeededPaddiesNotifier(this.seed);
+
+  final List<Paddy> seed;
+
+  @override
+  List<Paddy> build() => seed;
+}
+
+Future<ProviderContainer> _authedContainer(WidgetTester tester) async {
+  final container = ProviderContainer();
+  addTearDown(container.dispose);
+  final login = container.read(authSessionController.notifier).login('demo', 'demo1234');
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump(const Duration(milliseconds: 400));
+  await login;
+  return container;
+}
 
 void main() {
   group('risk helpers', () {
@@ -212,14 +244,51 @@ void main() {
     await tester.pump();
   });
 
-  testWidgets('app boots from splash to home', (tester) async {
+  testWidgets('login screen signs in and reaches home', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp.router(
+          routerConfig: GoRouter(
+            initialLocation: '/login',
+            routes: [
+              GoRoute(
+                path: '/login',
+                builder: (_, _) => const LoginScreen(),
+              ),
+              GoRoute(
+                path: '/home',
+                builder: (_, _) =>
+                    const Scaffold(body: Center(child: Text('HOME'))),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('로그인'), findsWidgets);
+
+    await tester.enterText(
+        find.widgetWithText(TextField, '아이디'), 'demo');
+    await tester.enterText(
+        find.widgetWithText(TextField, '비밀번호'), 'demo1234');
+    await tester.tap(find.widgetWithText(FilledButton, '로그인'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('HOME'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
+
+  testWidgets('app boots from splash to login when signed out', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: SmartRiceAiApp()));
     await tester.pump(const Duration(milliseconds: 1500));
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('Smart Rice AI'), findsWidgets);
-    expect(find.text('AI 비서'), findsOneWidget);
-    expect(find.text('오늘 해야 할 일'), findsOneWidget);
+    expect(find.text('로그인'), findsWidgets);
+    expect(find.text('처음이에요 → 회원가입'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
@@ -281,8 +350,15 @@ void main() {
   });
 
   testWidgets('farms adds paddy and navigates home', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final container = await _authedContainer(tester);
     await tester.pumpWidget(
-      ProviderScope(child: MaterialApp.router(routerConfig: _farmsRouter())),
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: _farmsRouter()),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -305,8 +381,15 @@ void main() {
   });
 
   testWidgets('farms deletes paddy', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final container = await _authedContainer(tester);
     await tester.pumpWidget(
-      ProviderScope(child: MaterialApp.router(routerConfig: _farmsRouter())),
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: _farmsRouter()),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -330,8 +413,15 @@ void main() {
   });
 
   testWidgets('farms paddy tap navigates to paddy view', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final container = await _authedContainer(tester);
     await tester.pumpWidget(
-      ProviderScope(child: MaterialApp.router(routerConfig: _farmsRouter())),
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: _farmsRouter()),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -368,16 +458,25 @@ void main() {
   });
 
   testWidgets('paddy view shows identity, sensors and twin', (tester) async {
-    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.physicalSize = const Size(800, 4000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
+    final container = ProviderContainer(
+      overrides: [
+        telemetryProvider.overrideWith((ref) => Stream.value(_telemetry)),
+        twinProvider.overrideWith((ref) => Stream.value(_twin)),
+      ],
+    );
+    addTearDown(container.dispose);
+    final login =
+        container.read(authSessionController.notifier).login('demo', 'demo1234');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+    await login;
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          telemetryProvider.overrideWith((ref) => Stream.value(_telemetry)),
-          twinProvider.overrideWith((ref) => Stream.value(_twin)),
-        ],
+      UncontrolledProviderScope(
+        container: container,
         child: MaterialApp(
           theme: AppTheme.dark(),
           home: const PaddyScreen(),
@@ -393,9 +492,12 @@ void main() {
     expect(find.text('AWD 담수'), findsWidgets);
     expect(find.text('AWD 사이클 · 담수'), findsOneWidget);
     expect(find.text('센서 상태'), findsOneWidget);
-    expect(find.text('토양수분'), findsOneWidget);
-    expect(find.text('EC'), findsOneWidget);
-    expect(find.text('신호'), findsOneWidget);
+    expect(find.text('토양수분'), findsWidgets);
+    expect(find.text('EC'), findsWidgets);
+    expect(find.text('신호'), findsWidgets);
+    expect(find.textContaining('연결된 기기 ('), findsOneWidget);
+    expect(find.text('논 A 수문 제어기'), findsOneWidget);
+    expect(find.text('논 A 수위·수온 센서'), findsOneWidget);
     expect(find.text('AI 예측 · 3시간 후'), findsOneWidget);
     expect(find.text('수문 열림'), findsOneWidget);
     expect(find.text('펌프 가동'), findsOneWidget);
