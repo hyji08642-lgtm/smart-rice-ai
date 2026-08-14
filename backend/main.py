@@ -14,19 +14,24 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import threading
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 TICK_SECONDS = 3.0
 MAX_NOTIFICATIONS = 40
 
-app = FastAPI(title="Smart Rice AI Backend")
+# API_TOKEN 환경변수가 설정되면 모든 API에 Authorization: Bearer <토큰>을 요구한다.
+API_TOKEN = os.getenv("API_TOKEN", "")
+
+app = FastAPI(title="Smart Rice AI Backend", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,6 +41,11 @@ app.add_middleware(
 )
 
 _lock = threading.Lock()
+
+
+def require_auth(request: Request) -> None:
+    if API_TOKEN and request.headers.get("Authorization") != f"Bearer {API_TOKEN}":
+        raise HTTPException(status_code=401, detail="unauthorized")
 
 
 class TelemetryIn(BaseModel):
@@ -335,9 +345,11 @@ async def _ticker() -> None:
                 p.advance()
 
 
-@app.on_event("startup")
-async def _startup() -> None:
-    asyncio.create_task(_ticker())
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    task = asyncio.create_task(_ticker())
+    yield
+    task.cancel()
 
 
 @app.get("/health")
@@ -345,7 +357,7 @@ def health() -> dict:
     return {"ok": True}
 
 
-@app.post("/api/devices/{paddy_id}/telemetry")
+@app.post("/api/devices/{paddy_id}/telemetry", dependencies=[Depends(require_auth)])
 def ingest_telemetry(paddy_id: str, t: TelemetryIn) -> dict:
     with _lock:
         p = PADDIES.get(paddy_id)
@@ -355,7 +367,7 @@ def ingest_telemetry(paddy_id: str, t: TelemetryIn) -> dict:
     return {"ok": True, "paddy_id": paddy_id}
 
 
-@app.get("/api/devices/{paddy_id}/command")
+@app.get("/api/devices/{paddy_id}/command", dependencies=[Depends(require_auth)])
 def device_command(paddy_id: str) -> dict:
     with _lock:
         p = PADDIES.get(paddy_id)
@@ -368,7 +380,7 @@ def device_command(paddy_id: str) -> dict:
         }
 
 
-@app.get("/api/state/{paddy_id}")
+@app.get("/api/state/{paddy_id}", dependencies=[Depends(require_auth)])
 def get_state(paddy_id: str) -> dict:
     with _lock:
         p = PADDIES.get(paddy_id)
@@ -378,7 +390,7 @@ def get_state(paddy_id: str) -> dict:
     return {"telemetry": telemetry, "twin": twin}
 
 
-@app.get("/api/notifications")
+@app.get("/api/notifications", dependencies=[Depends(require_auth)])
 def get_notifications() -> list[dict]:
     with _lock:
         # 현재 선택 논(마지막 조회) 기준 시드 생성
@@ -388,7 +400,7 @@ def get_notifications() -> list[dict]:
     return [n.to_json() for n in out]
 
 
-@app.post("/api/notifications/{notification_id}/read")
+@app.post("/api/notifications/{notification_id}/read", dependencies=[Depends(require_auth)])
 def mark_read(notification_id: str) -> dict:
     with _lock:
         now = datetime.now(timezone.utc).isoformat()
@@ -401,7 +413,7 @@ def mark_read(notification_id: str) -> dict:
     return {"ok": True}
 
 
-@app.post("/api/control/{paddy_id}")
+@app.post("/api/control/{paddy_id}", dependencies=[Depends(require_auth)])
 def control(paddy_id: str, c: ControlIn) -> dict:
     with _lock:
         p = PADDIES.get(paddy_id)

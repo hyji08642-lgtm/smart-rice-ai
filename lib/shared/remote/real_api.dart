@@ -19,6 +19,7 @@ class RealApi implements SensorApi {
   RealApi({
     required this.baseUrl,
     this.pollInterval = const Duration(seconds: 3),
+    this.apiToken = '',
     http.Client? client,
   })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl.replaceAll(RegExp(r'/+$'), '');
@@ -27,6 +28,11 @@ class RealApi implements SensorApi {
   final String baseUrl;
   final String _baseUrl;
   final Duration pollInterval;
+  final String apiToken;
+
+  Map<String, String> get _headers => apiToken.isEmpty
+      ? const {}
+      : {'Authorization': 'Bearer $apiToken'};
 
   String _current = 'paddy_a';
   Timer? _pollTimer;
@@ -75,7 +81,10 @@ class RealApi implements SensorApi {
     _refreshing = true;
     try {
       final state = await _client
-          .get(Uri.parse('$_baseUrl/api/state/$_current'))
+          .get(
+            Uri.parse('$_baseUrl/api/state/$_current'),
+            headers: _headers,
+          )
           .timeout(const Duration(seconds: 5));
       if (state.statusCode == 200) {
         final json =
@@ -88,7 +97,10 @@ class RealApi implements SensorApi {
       }
 
       final notif = await _client
-          .get(Uri.parse('$_baseUrl/api/notifications'))
+          .get(
+            Uri.parse('$_baseUrl/api/notifications'),
+            headers: _headers,
+          )
           .timeout(const Duration(seconds: 5));
       if (notif.statusCode == 200) {
         final list = (jsonDecode(utf8.decode(notif.bodyBytes)) as List)
@@ -109,7 +121,7 @@ class RealApi implements SensorApi {
       await _client
           .post(
             Uri.parse('$_baseUrl/api/control/$_current'),
-            headers: {'Content-Type': 'application/json'},
+            headers: {..._headers, 'Content-Type': 'application/json'},
             body: jsonEncode(body),
           )
           .timeout(const Duration(seconds: 5));
@@ -131,7 +143,7 @@ class RealApi implements SensorApi {
     try {
       _client.post(
         Uri.parse('$_baseUrl/api/notifications/$id/read'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {..._headers, 'Content-Type': 'application/json'},
         body: '{}',
       );
     } catch (_) {}

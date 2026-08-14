@@ -16,12 +16,13 @@ import '../../shared/models/twin_state.dart';
 import '../../shared/remote/real_api.dart';
 
 /// --dart-define=API_BASE_URL=http://... 지정 시 실제 백엔드(FastAPI)에 연결,
-/// 그 외에는 데모용 [MockApi]를 사용한다.
+/// 그 외에는 데모용 [MockApi]를 사용한다. API_TOKEN도 함께 지정하면 헤더로 전달.
 final sensorApiProvider = Provider.autoDispose<SensorApi>((ref) {
   const baseUrl = String.fromEnvironment('API_BASE_URL');
+  const apiToken = String.fromEnvironment('API_TOKEN');
   final api = baseUrl.isEmpty
       ? MockApi() as SensorApi
-      : RealApi(baseUrl: baseUrl) as SensorApi;
+      : RealApi(baseUrl: baseUrl, apiToken: apiToken) as SensorApi;
   ref.onDispose(api.dispose);
   return api;
 });

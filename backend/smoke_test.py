@@ -2,15 +2,21 @@
 
 from fastapi.testclient import TestClient
 
-from main import app
+from main import API_TOKEN, app
 
 client = TestClient(app)
+if API_TOKEN:
+    client.headers.update({"Authorization": f"Bearer {API_TOKEN}"})
 
 KNOWN_TYPES = {"methaneRisk", "awdDrain", "awdDry", "awdReflood", "awdFlood"}
 
 
 def test_flow() -> None:
     assert client.get("/health").json()["ok"] is True
+
+    if API_TOKEN:
+        # 인증 안 하면 거부
+        assert TestClient(app).get("/api/notifications").status_code == 401
 
     r = client.post(
         "/api/devices/paddy_a/telemetry",
