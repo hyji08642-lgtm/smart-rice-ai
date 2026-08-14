@@ -24,7 +24,7 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build web --release --base-href /smart-rice-ai/
+      - run: flutter build web --release --base-href /smart-rice-ai/ --dart-define=API_BASE_URL=https://smart-rice-backend.onrender.com
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
